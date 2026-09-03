@@ -3,7 +3,7 @@ const app = express();
 app.use(express.json());
 
 // ═══════════ CONFIG ═══════════
-const BOT_TOKEN = process.env.BOT_TOKEN || '8925694023:AAE_ITYjKOeCkcsR_gpAeU2WobQT3lGqWMw';
+const BOT_TOKEN = process.env.BOT_TOKEN || '8925694023:AAHA0DvvHAYLkXNprRaQ6eKC99AwqeX8Kbc';
 const SHEET_URL = process.env.SHEET_URL; // Google Sheets CSV export URL
 const ADMIN_KEY = process.env.ADMIN_KEY || 'SWAP_ADMIN_2026';
 
