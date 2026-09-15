@@ -22,7 +22,7 @@ let broadcastJob = {
   log: []
 };
 
-// ═══════════ CORS (allow dashboard) ═══════════
+// ═══════════ CORS ═══════════
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key');
@@ -31,7 +31,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ═══════════ AUTH MIDDLEWARE ═══════════
+// ═══════════ AUTH ═══════════
 function auth(req, res, next) {
   const key = req.headers['x-admin-key'] || req.query.key;
   if (key !== ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
@@ -49,38 +49,70 @@ async function fetchUsers() {
   const lines = csv.trim().split('\n');
   if (lines.length < 2) throw new Error('Sheet is empty');
 
-  // First row = headers
   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-  // Support: _id, userid, user_id, chat_id, telegramid, or first column as fallback
+
+  // Find userId column
   let userIdCol = headers.findIndex(h =>
     h === '_id' || h === 'userid' || h === 'user_id' ||
     h === 'chat_id' || h === 'telegramid' || h === 'telegram_id' ||
     h.includes('userid') || h.includes('user_id') || h.includes('chat_id')
   );
-
-  // Last resort: use column A (index 0)
   if (userIdCol === -1) {
-    console.warn('userId column not found by name — using column A (index 0). Headers:', headers.join(', '));
+    console.warn('userId column not found — using column A. Headers:', headers.join(', '));
     userIdCol = 0;
   }
+
+  // Find username column
+  let usernameCol = headers.findIndex(h =>
+    h === 'username' || h === 'user_name' || h === 'name' ||
+    h.includes('username') || h.includes('user_name')
+  );
 
   const users = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-    const uid = cols[userIdCol];
+    const uid  = cols[userIdCol];
     if (uid && uid !== 'None' && uid !== 'undefined' && uid !== '') {
-      users.push({ userId: uid });
+      const username = usernameCol >= 0 ? (cols[usernameCol] || '') : '';
+      users.push({ userId: uid, username });
     }
   }
   return users;
 }
 
+// ═══════════ USERNAME PLACEHOLDER REPLACER ═══════════
+// Dashboard message ውስጥ {username} ቢጽፉ → ተጠቃሚው ስም ይተካዋል
+// fallback: username ከሌለ "ተጠቃሚ" ይጠቀማል
+function personalise(text, username) {
+  const name = (username && username !== 'None' && username !== 'undefined' && username.trim() !== '')
+    ? username.trim()
+    : 'ተጠቃሚ';
+  return text.replace(/\{username\}/gi, name);
+}
+
+// ═══════════ MARKDOWN → HTML CONVERTER ═══════════
+function mdToHtml(text) {
+  return text
+    .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/_([^_\n]+)_/g, '<i>$1</i>')
+    .replace(/~~([^~]+)~~/g, '<s>$1</s>')
+    .replace(/\|\|([^|]+)\|\|/g, '<tg-spoiler>$1</tg-spoiler>');
+    // <u>...</u> passthrough — Telegram HTML ይደግፈዋል
+}
+
 // ═══════════ SEND ONE MESSAGE ═══════════
-async function sendToUser(uid, text, photo, replyMarkup) {
-  // Try photo first
+async function sendToUser(uid, rawText, username, photo, replyMarkup) {
+  // 1. Personalise: {username} → actual name
+  const personalised = personalise(rawText, username);
+  // 2. Markdown → HTML
+  const htmlText = mdToHtml(personalised);
+
+  // Try photo first (sendPhoto)
   if (photo) {
     try {
-      const body = { chat_id: uid, photo, caption: text, parse_mode: 'HTML' };
+      const body = { chat_id: uid, photo, caption: htmlText, parse_mode: 'HTML' };
       if (replyMarkup) body.reply_markup = replyMarkup;
       const r = await fetch(TG_PHOTO, {
         method: 'POST',
@@ -93,9 +125,9 @@ async function sendToUser(uid, text, photo, replyMarkup) {
     } catch (_) {}
   }
 
-  // Fallback: text only
+  // Fallback: text message (sendMessage)
   try {
-    const body = { chat_id: uid, text, parse_mode: 'HTML' };
+    const body = { chat_id: uid, text: htmlText, parse_mode: 'HTML' };
     if (replyMarkup) body.reply_markup = replyMarkup;
     const r = await fetch(TG_MESSAGE, {
       method: 'POST',
@@ -123,21 +155,19 @@ async function runBroadcast(users, text, photo, replyMarkup) {
   broadcastJob.log       = [];
 
   for (let i = 0; i < users.length; i++) {
-    // Stop check
     if (broadcastJob.stop) {
       broadcastJob.log.push('⏹️ Stopped by admin at ' + i);
       break;
     }
 
-    // Pause: wait until resumed or stopped
     while (broadcastJob.paused) {
       await sleep(1000);
       if (broadcastJob.stop) break;
     }
     if (broadcastJob.stop) break;
 
-    const uid = users[i].userId;
-    const result = await sendToUser(uid, text, photo, replyMarkup);
+    const { userId, username } = users[i];
+    const result = await sendToUser(userId, text, username || '', photo, replyMarkup);
 
     if (result.rateLimited) {
       broadcastJob.log.push('⚠️ Rate limited — waiting ' + result.wait + 's');
@@ -150,6 +180,7 @@ async function runBroadcast(users, text, photo, replyMarkup) {
       broadcastJob.sent++;
     } else {
       broadcastJob.failed++;
+      broadcastJob.log.push('❌ ' + userId + ': ' + (result.reason || 'unknown'));
     }
 
     // ~28 msgs/sec — Telegram safe rate
@@ -165,15 +196,24 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // ═══════════ API ROUTES ═══════════
 
 // Health check
-app.get('/', (req, res) => res.json({ status: 'Swap Broadcast Server running ✅' }));
+app.get('/', (req, res) => res.json({
+  status:    'Swap Broadcast Server running ✅',
+  bot_token: BOT_TOKEN ? '✅ Set' : '❌ Missing',
+  sheet_url: SHEET_URL ? '✅ Set' : '❌ Missing (needed for All-Users mode)',
+  admin_key: ADMIN_KEY ? '✅ Set' : '❌ Missing',
+  broadcast: broadcastJob.running
+    ? `🔄 Running — ${broadcastJob.sent}/${broadcastJob.total}`
+    : '⏹️ Idle',
+  tip: 'Message ውስጥ {username} ጻፍ — እያንዳንዱ ሰው ስሙ ይደርሰዋል ✅'
+}));
 
-// Start broadcast
+// ── Start broadcast ──
 app.post('/broadcast/start', auth, async (req, res) => {
   if (broadcastJob.running) {
     return res.status(409).json({ error: 'Broadcast already running. Stop it first.' });
   }
 
-  const { text, photo, btnText, btnUrl } = req.body;
+  const { text, photo, btnText, btnUrl, users: usersPayload, user_ids } = req.body;
   if (!text) return res.status(400).json({ error: 'text is required' });
 
   let replyMarkup = null;
@@ -181,24 +221,36 @@ app.post('/broadcast/start', auth, async (req, res) => {
     replyMarkup = { inline_keyboard: [[{ text: btnText, url: btnUrl }]] };
   }
 
-  // Fetch users
   let users;
-  try {
-    users = await fetchUsers();
-  } catch (e) {
-    return res.status(500).json({ error: 'Failed to fetch users: ' + e.message });
+
+  // ── Priority 1: dashboard sent full {userId, username} objects ──
+  if (Array.isArray(usersPayload) && usersPayload.length > 0) {
+    users = usersPayload.map(u => ({
+      userId:   String(u.userId || u.id || ''),
+      username: u.username || u.name || ''
+    })).filter(u => u.userId);
+    console.log(`[broadcast] Segmented (with username) — ${users.length} users`);
+
+  // ── Priority 2: legacy user_ids array (no username) ──
+  } else if (Array.isArray(user_ids) && user_ids.length > 0) {
+    users = user_ids.map(id => ({ userId: String(id), username: '' }));
+    console.log(`[broadcast] Segmented (ids only) — ${users.length} users`);
+
+  // ── Priority 3: All-users — fetch from Google Sheet ──
+  } else {
+    try {
+      users = await fetchUsers();
+      console.log(`[broadcast] All-users from sheet — ${users.length} users`);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to fetch users: ' + e.message });
+    }
+    if (users.length === 0) return res.status(404).json({ error: 'No users found in sheet' });
   }
 
-  if (users.length === 0) return res.status(404).json({ error: 'No users found in sheet' });
-
-  // Start in background (don't await)
+  // Fire in background — browser can close safely
   runBroadcast(users, text, photo || '', replyMarkup);
 
-  res.json({
-    ok: true,
-    message: 'Broadcast started in background',
-    total: users.length
-  });
+  res.json({ ok: true, message: 'Broadcast started', total: users.length });
 });
 
 // Pause
@@ -222,7 +274,7 @@ app.post('/broadcast/stop', auth, (req, res) => {
   res.json({ ok: true, message: 'Stopped' });
 });
 
-// Status (dashboard polls this)
+// Status — dashboard polls every 3s
 app.get('/broadcast/status', auth, (req, res) => {
   res.json({
     running:   broadcastJob.running,
@@ -230,9 +282,11 @@ app.get('/broadcast/status', auth, (req, res) => {
     sent:      broadcastJob.sent,
     failed:    broadcastJob.failed,
     total:     broadcastJob.total,
-    pct:       broadcastJob.total ? Math.round((broadcastJob.sent + broadcastJob.failed) / broadcastJob.total * 100) : 0,
+    pct:       broadcastJob.total
+                 ? Math.round((broadcastJob.sent + broadcastJob.failed) / broadcastJob.total * 100)
+                 : 0,
     startedAt: broadcastJob.startedAt,
-    lastLog:   broadcastJob.log.slice(-3)
+    lastLog:   broadcastJob.log.slice(-4)
   });
 });
 
