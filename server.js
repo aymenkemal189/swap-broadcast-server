@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
@@ -8,25 +7,26 @@ app.use(express.json({ limit: '15mb' }));
 
 // ═════════════════════ CONFIGURATION ═════════════════════
 const PORT          = process.env.PORT || 3000;
+const HOST          = '0.0.0.0'; // AletCloud ፖርቱን እንዲያገኘው ወሳኝ ነው
 
-// 1. የ Binance Mini App Bot ውቅረት (App & Admin Notifications)
+// 1. የ Binance Mini App Bot
 const BINANCE_BOT_TOKEN = process.env.BINANCE_BOT_TOKEN || process.env.BOT_TOKEN || '8925694023:AAHA0DvvHAYLkXNprRaQ6eKC99AwqeX8Kbc';
 const BINANCE_BOT_USER  = process.env.BINANCE_BOT_USERNAME || 'BinanceEthioBot';
 const ADMIN_CHAT_ID     = process.env.ADMIN_CHAT_ID;
 
-// 2. የ Broadcast Bot ውቅረት (Mass-Messaging Engine)
+// 2. የ Broadcast Bot
 const BROADCAST_BOT_TOKEN = process.env.BROADCAST_BOT_TOKEN || '8925694023:AAHA0DvvHAYLkXNprRaQ6eKC99AwqeX8Kbc';
 const ADMIN_KEY           = process.env.ADMIN_KEY || 'SWAP_ADMIN_2026';
 const SHEET_URL           = process.env.SHEET_URL; 
 
-// 3. እውነተኛ የክፍያ መረጃዎችና የሰርቨር አድራሻ
+// 3. እውነተኛ የክፍያ መረጃዎችና Verify Server
 const CBE_ACCOUNT     = '1000562339427';
 const TELEBIRR_PHONE  = '0996910607';
 const VERIFY_SERVER   = process.env.VERIFY_SERVER_URL || 'https://verifiy-server.app.aletcloud.com';
 const VERIFY_SECRET   = process.env.VERIFY_SECRET || process.env.VERIFY_TOKEN || '';
-const FX_RATE         = 120.00; // 1 USD = 120.00 ETB
+const FX_RATE         = 120.00;
 
-// 4. የቦቶች Telegram API Endpoints መለያየት
+// 4. የቦቶች Telegram API Endpoints
 const TG_APP_MESSAGE = `https://api.telegram.org/bot${BINANCE_BOT_TOKEN}/sendMessage`;
 const TG_BC_PHOTO    = `https://api.telegram.org/bot${BROADCAST_BOT_TOKEN}/sendPhoto`;
 const TG_BC_MESSAGE  = `https://api.telegram.org/bot${BROADCAST_BOT_TOKEN}/sendMessage`;
@@ -41,7 +41,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// የ Mini App ፋይሎችን (index.html) ማስተናገጃ
+// የ Mini App ፋይሎችን ማስተናገጃ
 app.use(express.static(path.join(__dirname, 'public')));
 
 function auth(req, res, next) {
@@ -51,13 +51,29 @@ function auth(req, res, next) {
 }
 
 // ═════════════════════ NEON POSTGRESQL POOL ═════════════════════
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+let pool = null;
 
-// የዳታቤዝ ሰንጠረዦችን ማስጀመር (Auto-Migration)
+try {
+  const { Pool } = require('pg');
+  if (process.env.DATABASE_URL) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+
+    pool.on('error', (err) => {
+      console.error('Unexpected Postgres error on idle client:', err.message);
+    });
+  } else {
+    console.warn('⚠️ DATABASE_URL is not set in Environment Variables!');
+  }
+} catch (e) {
+  console.error('⚠️ "pg" package not found. Run: npm install pg');
+}
+
+// የዳታቤዝ ሰንጠረዦችን በጀርባ ማስጀመር (ሰርቨሩ ሳይወድቅ)
 async function initDB() {
+  if (!pool) return;
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -139,18 +155,15 @@ async function initDB() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
-    console.log('✅ Neon PostgreSQL Database Connected & Initialized.');
+    console.log('✅ Neon PostgreSQL Database Initialized Successfully.');
   } catch (err) {
-    console.error('❌ Neon Database connection error:', err.message);
+    console.error('❌ Database query error (app still running):', err.message);
   }
 }
-initDB();
 
 // ═════════════════════ VERIFY SERVER INTEGRATION ═════════════════════
 async function checkWithVerifyServer(method, ref, amount) {
-  if (!VERIFY_SECRET) {
-    return { verified: false, manual: true };
-  }
+  if (!VERIFY_SECRET) return { verified: false, manual: true };
   try {
     const targetAccount = method.toLowerCase().includes('tele') ? TELEBIRR_PHONE : CBE_ACCOUNT;
     const resp = await fetch(`${VERIFY_SERVER}/verify`, {
@@ -167,17 +180,14 @@ async function checkWithVerifyServer(method, ref, amount) {
         amount: parseFloat(amount)
       })
     });
-    const result = await resp.json();
-    return result;
+    return await resp.json();
   } catch (err) {
-    console.warn('Verify server check warning:', err.message);
+    console.warn('Verify server check error:', err.message);
     return { verified: false, manual: true };
   }
 }
 
 // ═════════════════════ TELEGRAM HELPER FUNCTIONS ═════════════════════
-
-// ለአድሚኑ በ BINANCE BOT በኩል ኖቲፊኬሽን መላኪያ
 async function notifyAdmin(message) {
   if (!ADMIN_CHAT_ID) return;
   try {
@@ -187,7 +197,7 @@ async function notifyAdmin(message) {
       body: JSON.stringify({ chat_id: ADMIN_CHAT_ID, text: message, parse_mode: 'HTML' })
     });
   } catch (e) {
-    console.error('Failed to notify admin via Binance Bot:', e.message);
+    console.error('Failed to notify admin:', e.message);
   }
 }
 
@@ -208,7 +218,6 @@ function mdToHtml(text) {
     .replace(/\|\|([^|]+)\|\|/g, '<tg-spoiler>$1</tg-spoiler>');
 }
 
-// በ BROADCAST BOT በኩል ማስታወቂያ ለአንድ ተጠቃሚ መላኪያ
 async function sendToUser(uid, rawText, username, photo, replyMarkup) {
   const personalised = personalise(rawText, username);
   const htmlText = mdToHtml(personalised);
@@ -289,7 +298,7 @@ async function runBroadcast(users, text, photo, replyMarkup) {
       appendLog('❌ ' + userId + ': ' + (result.reason || 'unknown'));
     }
 
-    await sleep(35); // ~28 msgs/sec — Telegram Safe Rate
+    await sleep(35); // ~28 msgs/sec
   }
 
   broadcastJob.running = false;
@@ -298,7 +307,7 @@ async function runBroadcast(users, text, photo, replyMarkup) {
 
 function appendLog(msg) {
   broadcastJob.log.push(msg);
-  if (broadcastJob.log.length > 150) broadcastJob.log.shift(); // Memory Leak Guard
+  if (broadcastJob.log.length > 150) broadcastJob.log.shift();
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -332,10 +341,15 @@ async function fetchUsers() {
 
 // ═════════════════════ BINANCE ET MINI APP REST APIS ═════════════════════
 
+// Health check endpoint (AletCloud health check እንዲያልፈው)
+app.get('/health', (req, res) => res.status(200).send('OK'));
+
 // 1. User Sync / Auth
 app.post('/api/auth', async (req, res) => {
   const { telegram_id, first_name, last_name, username, ref_by } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
+
+  if (!pool) return res.json({ user: { balance_usd: 0.00 }, isNew: false });
 
   try {
     const userResult = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [telegram_id.toString()]);
@@ -354,7 +368,6 @@ app.post('/api/auth', async (req, res) => {
         );
       }
 
-      // ለባለቤቱ በ Binance Bot በኩል ማሳወቅ
       notifyAdmin(`👤 <b>አዲስ ተጠቃሚ ተመዝግቧል:</b>\nስም: ${first_name}\nID: <code>${telegram_id}</code>\nጋባዥ: ${validRef || 'የለም'}`);
       return res.json({ user: insertResult.rows[0], isNew: true });
     }
@@ -368,6 +381,8 @@ app.post('/api/auth', async (req, res) => {
 app.post('/api/claim-welcome', async (req, res) => {
   const { telegram_id } = req.body;
   const BONUS_USD = 0.50;
+
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
     const update = await pool.query(
@@ -396,6 +411,8 @@ app.post('/api/claim-stage', async (req, res) => {
   const { telegram_id, stage } = req.body;
   const stageNum = parseInt(stage);
 
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
   try {
     const uRes = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [telegram_id.toString()]);
     if (uRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -418,7 +435,7 @@ app.post('/api/claim-stage', async (req, res) => {
     } else if (stageNum === 4) {
       if (user.stage3_claimed !== 1) return res.status(400).json({ error: 'Complete Stage 3 first' });
       if (user.stage4_claimed === 1) return res.status(400).json({ error: 'Stage 4 already claimed' });
-      rewardUSD = 40.00; col = 'stage4_claimed'; // $40.00 VIP Champion
+      rewardUSD = 40.00; col = 'stage4_claimed';
     } else {
       return res.status(400).json({ error: 'Invalid stage' });
     }
@@ -440,7 +457,7 @@ app.post('/api/claim-stage', async (req, res) => {
   }
 });
 
-// 4. Deposit Submission (CBE: 1000562339427 & Telebirr: 0996910607)
+// 4. Deposit Submission
 app.post('/api/deposit/submit', async (req, res) => {
   const { telegram_id, currency, amount, payment_method, transaction_ref } = req.body;
   if (!transaction_ref || !amount) return res.status(400).json({ error: 'Amount and TxID are required' });
@@ -448,11 +465,12 @@ app.post('/api/deposit/submit', async (req, res) => {
   const amountVal = parseFloat(amount);
   const amountUSD = currency === 'ETB' ? (amountVal / FX_RATE) : amountVal;
 
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
   try {
     const exist = await pool.query('SELECT * FROM deposits WHERE transaction_ref = $1', [transaction_ref.trim()]);
     if (exist.rows.length > 0) return res.status(400).json({ error: 'ይህ የደረሰኝ ቁጥር አስቀድሞ አገልግሎት ላይ ውሏል!' });
 
-    // የክፍያ ማረጋገጫ ሰርቨርን መፈተሽ
     const verification = await checkWithVerifyServer(payment_method, transaction_ref, amountVal);
 
     let status = 'PENDING';
@@ -496,6 +514,8 @@ app.post('/api/cards/order', async (req, res) => {
   const randomCard = '4129 ' + Math.floor(1000 + Math.random() * 9000) + ' ' + Math.floor(1000 + Math.random() * 9000) + ' ' + Math.floor(1000 + Math.random() * 9000);
   const randomCVV = Math.floor(100 + Math.random() * 900).toString();
 
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
   try {
     await pool.query(
       `INSERT INTO virtual_cards (telegram_id, card_number, expiry, cvv, balance_usd, status) 
@@ -526,6 +546,8 @@ app.post('/api/services/buy-number', async (req, res) => {
   const fakePhone = (country === 'UK' ? '+44 ' : '+1 ') + Math.floor(2000000000 + Math.random() * 8000000000);
   const fakeOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
   try {
     await pool.query(
       `INSERT INTO phone_orders (telegram_id, country, service, phone_number, otp_code) 
@@ -549,12 +571,14 @@ app.post('/api/services/buy-number', async (req, res) => {
   }
 });
 
-// 7. ብር ማውጣት (Withdrawal - Atomic Deduct with Minimum $2.00 / 250 ETB)
+// 7. ብር ማውጣት (Withdrawal)
 app.post('/api/withdraw', async (req, res) => {
   const { telegram_id, amount_usd, payment_method, account_number } = req.body;
   const amount = parseFloat(amount_usd);
 
   if (amount < 2.00) return res.status(400).json({ error: 'ዝቅተኛው የማውጣት መጠን $2.00 USD (250 ETB) ነው።' });
+
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
     const deduct = await pool.query(
@@ -591,6 +615,8 @@ app.post('/api/daily-spin', async (req, res) => {
   const { telegram_id } = req.body;
   const now = new Date();
 
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
   try {
     const uRes = await pool.query('SELECT balance_usd, last_spin_at FROM users WHERE telegram_id = $1', [telegram_id.toString()]);
     if (uRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -615,9 +641,7 @@ app.post('/api/daily-spin', async (req, res) => {
   }
 });
 
-// ═════════════════════ BROADCAST API ROUTES (100% PRESERVED) ═════════════════════
-
-// Health check
+// ═════════════════════ BROADCAST API ROUTES ═════════════════════
 app.get('/status', (req, res) => res.json({
   server:        'Unified Binance ET (App) + Swap Broadcast (Marketing) Server running ✅',
   app_bot:       BINANCE_BOT_TOKEN ? '✅ Active' : '❌ Missing',
@@ -644,7 +668,7 @@ app.post('/broadcast/start', auth, async (req, res) => {
   } else if (Array.isArray(user_ids) && user_ids.length > 0) {
     users = user_ids.map(id => ({ userId: String(id), username: '' }));
   } else {
-    try { users = await fetchUsers(); } catch (e) { return res.status(500).json({ error: 'Failed to fetch users: ' + e.message }); }
+    try { users = await fetchUsers(); } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
   runBroadcast(users, text, photo || '', replyMarkup);
@@ -683,10 +707,13 @@ app.get('/broadcast/status', auth, (req, res) => {
 });
 
 // ═════════════════════ CRASH PREVENTION & PROCESS LISTENERS ═════════════════════
-process.on('uncaughtException', (err) => console.error('Uncaught Exception:', err));
+process.on('uncaughtException', (err) => console.error('Uncaught Exception:', err.message));
 process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason));
 
 // ═════════════════════ START SERVER ═════════════════════
-app.listen(PORT, () => {
-  console.log(`🚀 Unified Binance ET + Broadcast Server running on port ${PORT}`);
+// 1. በቅድሚያ ፖርቱን ከፍቶ ለ AletCloud ዝግጁ ያደርጋል
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Unified Server running on http://${HOST}:${PORT}`);
+  // 2. ከዚያ በኋላ ዳታቤዙን በጀርባ ያገናኛል
+  initDB();
 });
