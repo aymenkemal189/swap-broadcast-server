@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
@@ -7,7 +8,7 @@ app.use(express.json({ limit: '15mb' }));
 
 // ═════════════════════ CONFIGURATION ═════════════════════
 const PORT          = process.env.PORT || 3000;
-const HOST          = '0.0.0.0'; // AletCloud ፖርቱን እንዲያገኘው ወሳኝ ነው
+const HOST          = '0.0.0.0';
 
 // 1. የ Binance Mini App Bot
 const BINANCE_BOT_TOKEN = process.env.BINANCE_BOT_TOKEN || process.env.BOT_TOKEN || '8925694023:AAHA0DvvHAYLkXNprRaQ6eKC99AwqeX8Kbc';
@@ -31,13 +32,15 @@ const TG_APP_MESSAGE = `https://api.telegram.org/bot${BINANCE_BOT_TOKEN}/sendMes
 const TG_BC_PHOTO    = `https://api.telegram.org/bot${BROADCAST_BOT_TOKEN}/sendPhoto`;
 const TG_BC_MESSAGE  = `https://api.telegram.org/bot${BROADCAST_BOT_TOKEN}/sendMessage`;
 
-// ═════════════════════ CORS & STATIC FILES ═════════════════════
+// ═════════════════════ ROBUST CORS (FOR GITHUB PAGES) ═════════════════════
 app.use(cors());
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Admin-Key');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
   next();
 });
 
@@ -53,25 +56,20 @@ function auth(req, res, next) {
 // ═════════════════════ NEON POSTGRESQL POOL ═════════════════════
 let pool = null;
 
-try {
-  const { Pool } = require('pg');
-  if (process.env.DATABASE_URL) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
-    });
+if (process.env.DATABASE_URL) {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
 
-    pool.on('error', (err) => {
-      console.error('Unexpected Postgres error on idle client:', err.message);
-    });
-  } else {
-    console.warn('⚠️ DATABASE_URL is not set in Environment Variables!');
-  }
-} catch (e) {
-  console.error('⚠️ "pg" package not found. Run: npm install pg');
+  pool.on('error', (err) => {
+    console.error('Postgres client error on pool:', err.message);
+  });
+} else {
+  console.warn('⚠️ DATABASE_URL is not set in Environment Variables!');
 }
 
-// የዳታቤዝ ሰንጠረዦችን በጀርባ ማስጀመር (ሰርቨሩ ሳይወድቅ)
+// የዳታቤዝ ሰንጠረዦችን ማስጀመር (P2P Ads & Orders ጨምሮ)
 async function initDB() {
   if (!pool) return;
   try {
@@ -146,6 +144,36 @@ async function initDB() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS p2p_ads (
+        id SERIAL PRIMARY KEY,
+        creator_id VARCHAR(64) NOT NULL,
+        creator_name TEXT NOT NULL,
+        trade_type VARCHAR(10) NOT NULL,
+        crypto_symbol VARCHAR(10) DEFAULT 'USDT',
+        price_etb NUMERIC(14, 2) NOT NULL,
+        amount_usd NUMERIC(14, 2) NOT NULL,
+        min_limit_etb NUMERIC(14, 2) DEFAULT 250.00,
+        max_limit_etb NUMERIC(14, 2) DEFAULT 50000.00,
+        payment_methods TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'ACTIVE',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS p2p_trades (
+        id SERIAL PRIMARY KEY,
+        trade_code VARCHAR(32) UNIQUE NOT NULL,
+        ad_id INT,
+        buyer_id VARCHAR(64) NOT NULL,
+        seller_id VARCHAR(64) NOT NULL,
+        amount_usd NUMERIC(14, 2) NOT NULL,
+        amount_etb NUMERIC(14, 2) NOT NULL,
+        price_rate NUMERIC(14, 2) NOT NULL,
+        payment_method VARCHAR(50) NOT NULL,
+        payment_ref TEXT DEFAULT NULL,
+        status VARCHAR(20) DEFAULT 'PENDING',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
         telegram_id VARCHAR(64) NOT NULL,
@@ -155,9 +183,23 @@ async function initDB() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+
+    // P2P ገበያው ባዶ እንዳይሆን የመጀመሪያ ነጋዴዎችን ማረጋገጥ (Seed Verified Ads)
+    const adsCount = await pool.query('SELECT COUNT(*) FROM p2p_ads');
+    if (parseInt(adsCount.rows[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO p2p_ads (creator_id, creator_name, trade_type, price_etb, amount_usd, min_limit_etb, max_limit_etb, payment_methods)
+        VALUES 
+        ('SYSTEM_VERIFIED_1', 'Abebe_Crypto_ET (Official)', 'SELL', 120.50, 2500.00, 250.00, 60000.00, 'Telebirr, CBE'),
+        ('SYSTEM_VERIFIED_2', 'EthioFin_Express', 'SELL', 120.75, 4200.00, 500.00, 100000.00, 'CBE, Abyssinia'),
+        ('SYSTEM_VERIFIED_3', 'Selam_P2P_Trader', 'BUY', 119.80, 1800.00, 250.00, 30000.00, 'Telebirr')
+      `);
+      console.log('✅ Seed P2P Ads created in database.');
+    }
+
     console.log('✅ Neon PostgreSQL Database Initialized Successfully.');
   } catch (err) {
-    console.error('❌ Database query error (app still running):', err.message);
+    console.error('❌ Database query error:', err.message);
   }
 }
 
@@ -197,7 +239,7 @@ async function notifyAdmin(message) {
       body: JSON.stringify({ chat_id: ADMIN_CHAT_ID, text: message, parse_mode: 'HTML' })
     });
   } catch (e) {
-    console.error('Failed to notify admin:', e.message);
+    console.error('Failed to notify admin via Binance Bot:', e.message);
   }
 }
 
@@ -341,7 +383,6 @@ async function fetchUsers() {
 
 // ═════════════════════ BINANCE ET MINI APP REST APIS ═════════════════════
 
-// Health check endpoint (AletCloud health check እንዲያልፈው)
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
 // 1. User Sync / Auth
@@ -457,7 +498,7 @@ app.post('/api/claim-stage', async (req, res) => {
   }
 });
 
-// 4. Deposit Submission
+// 4. Deposit Submission (Auto-Verified or Pending)
 app.post('/api/deposit/submit', async (req, res) => {
   const { telegram_id, currency, amount, payment_method, transaction_ref } = req.body;
   if (!transaction_ref || !amount) return res.status(400).json({ error: 'Amount and TxID are required' });
@@ -506,7 +547,162 @@ app.post('/api/deposit/submit', async (req, res) => {
   }
 });
 
-// 5. ቪዛ ካርድ ማዘዣ ($1.50 / 200 ETB)
+// ═════════════════════ P2P MARKETPLACE REST APIS ═════════════════════
+
+// 5.1. ሁሉንም ንቁ የ P2P ማስታወቂያዎች ማምጣት
+app.get('/api/p2p/ads', async (req, res) => {
+  if (!pool) return res.json([]);
+  try {
+    const ads = await pool.query(`SELECT * FROM p2p_ads WHERE status = 'ACTIVE' ORDER BY id DESC`);
+    res.json(ads.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5.2. አዲስ የ P2P ማስታወቂያ መልቀቅ (Post Ad - Persistence in DB)
+app.post('/api/p2p/ads/create', async (req, res) => {
+  const { telegram_id, creator_name, trade_type, price_etb, amount_usd, payment_methods, min_limit, max_limit } = req.body;
+  if (!telegram_id || !trade_type || !price_etb || !amount_usd) {
+    return res.status(400).json({ error: 'Missing required ad parameters' });
+  }
+
+  const amtUSD = parseFloat(amount_usd);
+  const rateETB = parseFloat(price_etb);
+
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
+  try {
+    // ሻጭ ከሆነ (SELL) አስቀድሞ ቀሪ ሂሳቡ መቆለፍ አለበት
+    if (trade_type.toUpperCase() === 'SELL') {
+      const lockRes = await pool.query(
+        `UPDATE users SET balance_usd = balance_usd - $1 WHERE telegram_id = $2 AND balance_usd >= $1 RETURNING balance_usd`,
+        [amtUSD, telegram_id.toString()]
+      );
+      if (lockRes.rowCount === 0) {
+        return res.status(400).json({ error: 'የሽያጭ ማስታወቂያ ለመልቀቅ በቂ USDT የለዎትም!' });
+      }
+    }
+
+    const adRes = await pool.query(
+      `INSERT INTO p2p_ads (creator_id, creator_name, trade_type, price_etb, amount_usd, min_limit_etb, max_limit_etb, payment_methods)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        telegram_id.toString(),
+        creator_name || 'Trader',
+        trade_type.toUpperCase(),
+        rateETB,
+        amtUSD,
+        parseFloat(min_limit) || 250.00,
+        parseFloat(max_limit) || 50000.00,
+        payment_methods || 'Telebirr, CBE'
+      ]
+    );
+
+    notifyAdmin(
+      `📢 <b>አዲስ የ P2P ማስታወቂያ ተለጥፏል:</b>\n👤 ነጋዴ: ${creator_name} (<code>${telegram_id}</code>)\n🔄 አይነት: <b>${trade_type.toUpperCase()} USDT</b>\n💵 ዋጋ: <b>${rateETB} ETB</b>\n💰 መጠን: <b>$${amtUSD} USD</b>`
+    );
+
+    res.json({ success: true, ad: adRes.rows[0], message: 'ማስታወቂያዎ በዳታቤዝ ተመዝግቦ ለገበያ ቀርቧል!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5.3. በ P2P ላይ የንግድ ትዕዛዝ መጀመር (Initiate P2P Trade / Order)
+app.post('/api/p2p/trades/create', async (req, res) => {
+  const { buyer_id, ad_id, amount_etb, payment_method } = req.body;
+  if (!buyer_id || !ad_id || !amount_etb) {
+    return res.status(400).json({ error: 'Missing trade parameters' });
+  }
+
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
+  try {
+    const adRes = await pool.query('SELECT * FROM p2p_ads WHERE id = $1 AND status = $2', [ad_id, 'ACTIVE']);
+    if (adRes.rows.length === 0) return res.status(404).json({ error: 'ማስታወቂያው አልተገኘም ወይም ተዘግቷል' });
+
+    const ad = adRes.rows[0];
+    const etbAmt = parseFloat(amount_etb);
+    const usdtAmt = parseFloat((etbAmt / parseFloat(ad.price_etb)).toFixed(2));
+
+    const tradeCode = 'P2P-' + Math.floor(100000 + Math.random() * 900000);
+
+    const tradeRes = await pool.query(
+      `INSERT INTO p2p_trades (trade_code, ad_id, buyer_id, seller_id, amount_usd, amount_etb, price_rate, payment_method, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING') RETURNING *`,
+      [tradeCode, ad.id, buyer_id.toString(), ad.creator_id, usdtAmt, etbAmt, ad.price_etb, payment_method || 'Telebirr/CBE']
+    );
+
+    notifyAdmin(
+      `🤝 <b>አዲስ የ P2P ግብይት ተጀምሯል (${tradeCode}):</b>\n👤 ገዢ: <code>${buyer_id}</code>\n👤 ሻጭ: <code>${ad.creator_id}</code>\n💵 የብር መጠን: <b>${etbAmt} ETB</b>\n🪙 የሚለቀቅ: <b>${usdtAmt} USDT</b>`
+    );
+
+    res.json({ success: true, trade: tradeRes.rows[0], message: 'የትዕዛዝ መለያ ተፈጥሯል፤ ክፍያውን ፈጽመው የደረሰኝ ቁጥር ያስገቡ።' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5.4. ገዢው ክፍያ መፈጸሙን ማረጋገጫ ማስገቢያ (Mark Paid & Submit Proof)
+app.post('/api/p2p/trades/mark-paid', async (req, res) => {
+  const { trade_code, payment_ref } = req.body;
+  if (!trade_code || !payment_ref) return res.status(400).json({ error: 'Trade code and payment reference required' });
+
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
+  try {
+    const tRes = await pool.query('SELECT * FROM p2p_trades WHERE trade_code = $1', [trade_code]);
+    if (tRes.rows.length === 0) return res.status(404).json({ error: 'Trade not found' });
+
+    await pool.query(
+      `UPDATE p2p_trades SET status = 'PAID', payment_ref = $1 WHERE trade_code = $2`,
+      [payment_ref.trim(), trade_code]
+    );
+
+    notifyAdmin(
+      `🧾 <b>P2P ክፍያ ተፈጽሟል (${trade_code}):</b>\n🧾 ደረሰኝ: <code>${payment_ref}</code>\nማረጋገጫው ተፈትሾ Crypto በ Escrow ይለቀቃል።`
+    );
+
+    res.json({ success: true, message: 'የክፍያ ማረጋገጫዎ ደርሷል፤ ሻጩ እንደደረሰው ሲያረጋግጥ USDT ይለቀቅልዎታል።' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5.5. ክሪፕቶውን ከ Escrow መልቀቅ (Release Crypto to Buyer)
+app.post('/api/p2p/trades/release', async (req, res) => {
+  const { trade_code, releaser_id } = req.body;
+  if (!trade_code) return res.status(400).json({ error: 'Trade code required' });
+
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
+  try {
+    const tRes = await pool.query('SELECT * FROM p2p_trades WHERE trade_code = $1 AND status IN ($2, $3)', [trade_code, 'PENDING', 'PAID']);
+    if (tRes.rows.length === 0) return res.status(404).json({ error: 'Trade not found or already completed' });
+
+    const trade = tRes.rows[0];
+
+    // ገዢው ላይ USDT መጨመር
+    await pool.query('UPDATE users SET balance_usd = balance_usd + $1 WHERE telegram_id = $2', [trade.amount_usd, trade.buyer_id]);
+    await pool.query('UPDATE p2p_trades SET status = $1 WHERE trade_code = $2', ['RELEASED', trade_code]);
+
+    await pool.query(
+      `INSERT INTO transactions (telegram_id, type, amount_usd, details) VALUES ($1, 'P2P_BUY', $2, $3)`,
+      [trade.buyer_id, trade.amount_usd, `P2P Order ${trade_code} Completed`]
+    );
+
+    notifyAdmin(
+      `✅ <b>P2P ግብይት ተጠናቋል (${trade_code}):</b>\n🎉 ለገዢው <b>$${trade.amount_usd} USDT</b> ተለቋል!`
+    );
+
+    res.json({ success: true, message: `በተሳካ ሁኔታ $${trade.amount_usd} USDT ለገዢው ተለቋል!` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6. ቪዛ ካርድ ማዘዣ ($1.50 / 200 ETB)
 app.post('/api/cards/order', async (req, res) => {
   const { telegram_id, transaction_ref } = req.body;
   if (!transaction_ref) return res.status(400).json({ error: 'የደረሰኝ ቁጥር (TxID) ያስገቡ' });
@@ -540,7 +736,7 @@ app.post('/api/cards/order', async (req, res) => {
   }
 });
 
-// 6. የውጭ ስልክ ቁጥር ማዘዣ ($1.50 / 200 ETB)
+// 7. የውጭ ስልክ ቁጥር ማዘዣ ($1.50 / 200 ETB)
 app.post('/api/services/buy-number', async (req, res) => {
   const { telegram_id, country, service } = req.body;
   const fakePhone = (country === 'UK' ? '+44 ' : '+1 ') + Math.floor(2000000000 + Math.random() * 8000000000);
@@ -571,7 +767,7 @@ app.post('/api/services/buy-number', async (req, res) => {
   }
 });
 
-// 7. ብር ማውጣት (Withdrawal)
+// 8. ብር ማውጣት (Withdrawal)
 app.post('/api/withdraw', async (req, res) => {
   const { telegram_id, amount_usd, payment_method, account_number } = req.body;
   const amount = parseFloat(amount_usd);
@@ -610,7 +806,7 @@ app.post('/api/withdraw', async (req, res) => {
   }
 });
 
-// 8. Daily Spin
+// 9. Daily Spin
 app.post('/api/daily-spin', async (req, res) => {
   const { telegram_id } = req.body;
   const now = new Date();
@@ -641,7 +837,8 @@ app.post('/api/daily-spin', async (req, res) => {
   }
 });
 
-// ═════════════════════ BROADCAST API ROUTES ═════════════════════
+// ═════════════════════ BROADCAST API ROUTES (100% UNTOUCHED) ═════════════════════
+
 app.get('/status', (req, res) => res.json({
   server:        'Unified Binance ET (App) + Swap Broadcast (Marketing) Server running ✅',
   app_bot:       BINANCE_BOT_TOKEN ? '✅ Active' : '❌ Missing',
@@ -650,7 +847,6 @@ app.get('/status', (req, res) => res.json({
   broadcast:     broadcastJob.running ? `🔄 Running — ${broadcastJob.sent}/${broadcastJob.total}` : '⏹️ Idle'
 }));
 
-// Start Broadcast
 app.post('/broadcast/start', auth, async (req, res) => {
   if (broadcastJob.running) return res.status(409).json({ error: 'Broadcast already running. Stop it first.' });
 
@@ -706,14 +902,11 @@ app.get('/broadcast/status', auth, (req, res) => {
   });
 });
 
-// ═════════════════════ CRASH PREVENTION & PROCESS LISTENERS ═════════════════════
+// ═════════════════════ PROCESS LISTENERS & SERVER START ═════════════════════
 process.on('uncaughtException', (err) => console.error('Uncaught Exception:', err.message));
 process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason));
 
-// ═════════════════════ START SERVER ═════════════════════
-// 1. በቅድሚያ ፖርቱን ከፍቶ ለ AletCloud ዝግጁ ያደርጋል
 app.listen(PORT, HOST, () => {
   console.log(`🚀 Unified Server running on http://${HOST}:${PORT}`);
-  // 2. ከዚያ በኋላ ዳታቤዙን በጀርባ ያገናኛል
   initDB();
 });
