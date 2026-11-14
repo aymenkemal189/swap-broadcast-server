@@ -1,3 +1,4 @@
+try { require('dotenv').config(); } catch (_) {}
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -7,48 +8,69 @@ const app = express();
 app.use(express.json({ limit: '15mb' }));
 
 // ═════════════════════ CONFIGURATION ═════════════════════
-const PORT          = process.env.PORT || 3000;
-const HOST          = '0.0.0.0';
+const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
 
-// 1. የቦቶች መለያየት (App Bot vs Broadcast Bot)
+// 1. Telegram Bots (App Bot vs Broadcast Bot)
 const BINANCE_BOT_TOKEN   = process.env.BINANCE_BOT_TOKEN || process.env.BOT_TOKEN || '8925694023:AAHA0DvvHAYLkXNprRaQ6eKC99AwqeX8Kbc';
-const BINANCE_BOT_USER    = process.env.BINANCE_BOT_USERNAME || 'BinanceEthioBot';
-const ADMIN_CHAT_ID       = process.env.ADMIN_CHAT_ID;
+const BINANCE_BOT_USER    = process.env.BINANCE_BOT_USERNAME || 'Binanceethopiapartnerbot';
+const ADMIN_CHAT_ID       = process.env.ADMIN_CHAT_ID || '';
 
 const BROADCAST_BOT_TOKEN = process.env.BROADCAST_BOT_TOKEN || '8925694023:AAHA0DvvHAYLkXNprRaQ6eKC99AwqeX8Kbc';
 const ADMIN_KEY           = process.env.ADMIN_KEY || 'SWAP_ADMIN_2026';
-const SHEET_URL           = process.env.SHEET_URL; 
+const SHEET_URL           = process.env.SHEET_URL || '';
 
-// 2. እውነተኛ የክፍያ መረጃዎችና Verify Server
-const CBE_ACCOUNT     = '1000562339427';
-const TELEBIRR_PHONE  = '0996910607';
-const VERIFY_SERVER   = process.env.VERIFY_SERVER_URL || 'https://verifiy-server.app.aletcloud.com';
-const VERIFY_SECRET   = process.env.VERIFY_SECRET || process.env.VERIFY_TOKEN || '';
+// 2. Payment & Verification Config
+const CBE_ACCOUNT        = process.env.CBE_ACCOUNT || '1000562339427';
+const TELEBIRR_PHONE     = process.env.TELEBIRR_PHONE || '0996910607';
+const BINANCE_PAY_ID     = process.env.BINANCE_PAY_ID || '392268780';
+const USDT_BEP20_ADDRESS = process.env.USDT_BEP20_ADDRESS || '0x71a29f4e2c91834cb2e098a542b8109d';
+const USDT_TRC20_ADDRESS = process.env.USDT_TRC20_ADDRESS || 'TJY9x5e7vN9wKqF2qXzG8yP7A4b1c2D3e';
 
-// 3. ተለዋዋጭ የዶላር ምንዛሬ (Dynamic FX Rate - አሁን በ 194.00 ETB)
-let CURRENT_FX_RATE = 194.00;
+const VERIFY_SERVER      = process.env.VERIFY_SERVER_URL || 'https://verifiy-server.app.aletcloud.com';
+const VERIFY_SECRET      = process.env.VERIFY_SECRET || process.env.VERIFY_TOKEN || '';
 
-// 4. የቦቶች Telegram API Endpoints
+// 3. Business Rules & Dynamic FX Rate
+let CURRENT_FX_RATE   = parseFloat(process.env.DEFAULT_FX_RATE) || 194.00;
+const P2P_FEE_PERCENT = parseFloat(process.env.P2P_FEE_PERCENT) || 3;
+const MIN_WITHDRAW_USD = parseFloat(process.env.MIN_WITHDRAW_USD) || 2.00;
+const REQUIRE_KYC     = String(process.env.REQUIRE_KYC || 'true').toLowerCase() === 'true';
+
+// 4. Telegram API Endpoints
 const TG_APP_MESSAGE = `https://api.telegram.org/bot${BINANCE_BOT_TOKEN}/sendMessage`;
 const TG_BC_PHOTO    = `https://api.telegram.org/bot${BROADCAST_BOT_TOKEN}/sendPhoto`;
 const TG_BC_MESSAGE  = `https://api.telegram.org/bot${BROADCAST_BOT_TOKEN}/sendMessage`;
 
-// ═════════════════════ ROBUST CORS (FOR GITHUB PAGES) ═════════════════════
+// ═════════════════════ INTEGER COMMISSION MATH ═════════════════════
+function calcOrder(usdt, price, percent = P2P_FEE_PERCENT) {
+  const grossCents = Math.round(Number(((Number(usdt) || 0) * 100).toFixed(6)));
+  const pct = Number(percent) || 0;
+  const feeCents = Math.round(Number(((grossCents * pct) / 100).toFixed(6)));
+  const netCents = grossCents - feeCents;
+
+  const gross = grossCents / 100;
+  const fee = feeCents / 100;
+  const net = netCents / 100;
+
+  const priceCents = Math.round(Number(((Number(price) || 0) * 100).toFixed(6)));
+  const etbTotal = Math.round(Number(((grossCents * priceCents) / 100).toFixed(6))) / 100;
+
+  return { gross, fee, net, etbTotal };
+}
+
+// ═════════════════════ ROBUST CORS (GITHUB PAGES + DATE HEADER) ═════════════════════
 app.use(cors());
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Admin-Key');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  res.header('Access-Control-Expose-Headers', 'Date');
+  if (req.method === 'OPTIONS') return res.status(200).end();
   next();
 });
 
-// የ Mini App ፋይሎችን ማስተናገጃ
 app.use(express.static(path.join(__dirname, 'public')));
 
-// የአድሚን ጥበቃ Middleware
 function auth(req, res, next) {
   const key = req.headers['x-admin-key'] || req.query.key;
   if (key !== ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized: Invalid Admin Key' });
@@ -63,7 +85,6 @@ if (process.env.DATABASE_URL) {
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
   });
-
   pool.on('error', (err) => {
     console.error('Postgres client error on pool:', err.message);
   });
@@ -71,7 +92,6 @@ if (process.env.DATABASE_URL) {
   console.warn('⚠️ DATABASE_URL is not set in Environment Variables!');
 }
 
-// የዳታቤዝ ሰንጠረዦችን ማስጀመር (Auto-Migration)
 async function initDB() {
   if (!pool) return;
   try {
@@ -88,7 +108,11 @@ async function initDB() {
         last_name TEXT,
         username TEXT,
         phone_number VARCHAR(32) DEFAULT NULL,
+        kyc_status VARCHAR(20) DEFAULT 'None',
+        kyc_full_name TEXT DEFAULT NULL,
+        national_id VARCHAR(64) DEFAULT NULL,
         balance_usd NUMERIC(14, 2) DEFAULT 0.00,
+        locked_usd NUMERIC(14, 2) DEFAULT 0.00,
         welcome_claimed INT DEFAULT 0,
         stage1_claimed INT DEFAULT 0,
         stage2_claimed INT DEFAULT 0,
@@ -176,11 +200,15 @@ async function initDB() {
         buyer_id VARCHAR(64) NOT NULL,
         seller_id VARCHAR(64) NOT NULL,
         amount_usd NUMERIC(14, 2) NOT NULL,
+        fee_usd NUMERIC(14, 2) DEFAULT 0.00,
+        net_usd NUMERIC(14, 2) DEFAULT 0.00,
         amount_etb NUMERIC(14, 2) NOT NULL,
         price_rate NUMERIC(14, 2) NOT NULL,
         payment_method VARCHAR(50) NOT NULL,
+        receiving_id TEXT DEFAULT NULL,
         payment_ref TEXT DEFAULT NULL,
         status VARCHAR(20) DEFAULT 'PENDING',
+        expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '15 minutes'),
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
@@ -194,7 +222,19 @@ async function initDB() {
       );
     `);
 
-    // የምንዛሬውን ዋጋ ከዳታቤዝ ማንበብ ወይም ማስጀመር
+    // Safe non-destructive migrations for existing databases
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status VARCHAR(20) DEFAULT 'None';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_full_name TEXT DEFAULT NULL;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id VARCHAR(64) DEFAULT NULL;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_usd NUMERIC(14, 2) DEFAULT 0.00;
+      ALTER TABLE virtual_cards ADD COLUMN IF NOT EXISTS card_type VARCHAR(20) DEFAULT 'VISA';
+      ALTER TABLE p2p_trades ADD COLUMN IF NOT EXISTS fee_usd NUMERIC(14, 2) DEFAULT 0.00;
+      ALTER TABLE p2p_trades ADD COLUMN IF NOT EXISTS net_usd NUMERIC(14, 2) DEFAULT 0.00;
+      ALTER TABLE p2p_trades ADD COLUMN IF NOT EXISTS receiving_id TEXT DEFAULT NULL;
+      ALTER TABLE p2p_trades ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '15 minutes');
+    `);
+
     const fxRes = await pool.query(`SELECT value FROM system_settings WHERE key = 'fx_rate'`);
     if (fxRes.rows.length === 0) {
       await pool.query(`INSERT INTO system_settings (key, value) VALUES ('fx_rate', $1)`, [CURRENT_FX_RATE.toString()]);
@@ -202,21 +242,20 @@ async function initDB() {
       CURRENT_FX_RATE = parseFloat(fxRes.rows[0].value) || 194.00;
     }
 
-    // የ P2P ገበያ ባዶ እንዳይሆን የተረጋገጡ ነጋዴዎችን ማስገባት
     const adsCount = await pool.query('SELECT COUNT(*) FROM p2p_ads');
     if (parseInt(adsCount.rows[0].count) === 0) {
       await pool.query(`
         INSERT INTO p2p_ads (creator_id, creator_name, trade_type, price_etb, amount_usd, min_limit_etb, max_limit_etb, payment_methods)
         VALUES 
-        ('SYSTEM_VERIFIED_1', 'Abebe_Crypto_ET (Official)', 'SELL', 194.50, 5000.00, 500.00, 100000.00, 'Telebirr, CBE'),
-        ('SYSTEM_VERIFIED_2', 'EthioFin_Express', 'SELL', 194.80, 8500.00, 1000.00, 150000.00, 'CBE, Abyssinia'),
-        ('SYSTEM_VERIFIED_3', 'Selam_P2P_Trader', 'BUY', 193.50, 2500.00, 500.00, 50000.00, 'Telebirr')
+        ('SYSTEM_VERIFIED_1', 'Abebe_Crypto_ET', 'BUY', 194.00, 5000.00, 500.00, 100000.00, 'Telebirr, CBE'),
+        ('SYSTEM_VERIFIED_2', 'EthioFin_Express', 'SELL', 194.50, 8500.00, 1000.00, 150000.00, 'CBE, Abyssinia'),
+        ('SYSTEM_VERIFIED_3', 'Selam_P2P_Trader', 'SELL', 193.80, 2500.00, 500.00, 50000.00, 'Telebirr')
       `);
     }
 
-    console.log(`✅ Database Initialized. Active Dollar Rate: 1 USD = ${CURRENT_FX_RATE} ETB`);
+    console.log(`✅ Neon PostgreSQL Ready. Active Rate: 1 USD = ${CURRENT_FX_RATE} ETB`);
   } catch (err) {
-    console.error('❌ Database query error:', err.message);
+    console.error('❌ Database init error:', err.message);
   }
 }
 
@@ -241,22 +280,24 @@ async function checkWithVerifyServer(method, ref, amount) {
     });
     return await resp.json();
   } catch (err) {
-    console.warn('Verify server check error:', err.message);
+    console.warn('Verify server check warning:', err.message);
     return { verified: false, manual: true };
   }
 }
 
-// ═════════════════════ TELEGRAM HELPER FUNCTIONS ═════════════════════
-async function notifyAdmin(message) {
+// ═════════════════════ TELEGRAM HELPERS & ADMIN ALERTS ═════════════════════
+async function notifyAdmin(message, replyMarkup = null) {
   if (!ADMIN_CHAT_ID) return;
   try {
+    const body = { chat_id: ADMIN_CHAT_ID, text: message, parse_mode: 'HTML' };
+    if (replyMarkup) body.reply_markup = replyMarkup;
     await fetch(TG_APP_MESSAGE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: ADMIN_CHAT_ID, text: message, parse_mode: 'HTML' })
+      body: JSON.stringify(body)
     });
   } catch (e) {
-    console.error('Failed to notify admin via Binance Bot:', e.message);
+    console.error('Failed to notify admin:', e.message);
   }
 }
 
@@ -313,19 +354,19 @@ async function sendToUser(uid, rawText, username, photo, replyMarkup) {
   }
 }
 
-// ═════════════════════ BROADCAST RUNNER ═════════════════════
+// ═════════════════════ BROADCAST RUNNER (100% INTACT + CSV GUARD) ═════════════════════
 let broadcastJob = {
   running: false, paused: false, stop: false, sent: 0, failed: 0, total: 0, startedAt: null, log: []
 };
 
 async function runBroadcast(users, text, photo, replyMarkup) {
-  broadcastJob.running   = true; 
-  broadcastJob.paused    = false; 
-  broadcastJob.stop      = false; 
-  broadcastJob.sent      = 0; 
-  broadcastJob.failed    = 0; 
+  broadcastJob.running   = true;
+  broadcastJob.paused    = false;
+  broadcastJob.stop      = false;
+  broadcastJob.sent      = 0;
+  broadcastJob.failed    = 0;
   broadcastJob.total     = users.length;
-  broadcastJob.startedAt = new Date().toISOString(); 
+  broadcastJob.startedAt = new Date().toISOString();
   broadcastJob.log       = [];
 
   for (let i = 0; i < users.length; i++) {
@@ -373,62 +414,81 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function fetchUsers() {
   if (!SHEET_URL) throw new Error('SHEET_URL env variable not set');
+
   const res = await fetch(SHEET_URL);
   if (!res.ok) throw new Error('Failed to fetch sheet: ' + res.status);
   const csv = await res.text();
+
+  // Reject HTML pages from un-published Google Sheets
+  if (csv.trim().startsWith('<!DOCTYPE') || csv.includes('<html') || csv.includes('<script')) {
+    throw new Error('SHEET_URL returned HTML instead of CSV. Publish the sheet as Comma-separated values (.csv).');
+  }
+
   const lines = csv.trim().split('\n');
   if (lines.length < 2) throw new Error('Sheet is empty');
 
   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
   let userIdCol = headers.findIndex(h =>
-    h === '_id' || h === 'userid' || h === 'user_id' || h === 'chat_id' || h.includes('userid') || h.includes('user_id')
+    h === '_id' || h === 'userid' || h === 'user_id' ||
+    h === 'chat_id' || h === 'telegramid' || h === 'telegram_id' ||
+    h.includes('userid') || h.includes('user_id') || h.includes('chat_id')
   );
   if (userIdCol === -1) userIdCol = 0;
 
-  let usernameCol = headers.findIndex(h => h === 'username' || h === 'user_name' || h.includes('username'));
+  let usernameCol = headers.findIndex(h =>
+    h === 'username' || h === 'user_name' || h === 'name' ||
+    h.includes('username') || h.includes('user_name')
+  );
 
   const users = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-    const uid  = cols[userIdCol];
-    if (uid && uid !== 'None' && uid !== 'undefined' && uid !== '') {
-      users.push({ userId: uid, username: usernameCol >= 0 ? (cols[usernameCol] || '') : '' });
+    const uid  = (cols[userIdCol] || '').trim();
+    // Accept only valid numeric Telegram IDs
+    if (uid && /^\d+$/.test(uid)) {
+      const username = usernameCol >= 0 ? (cols[usernameCol] || '') : '';
+      users.push({ userId: uid, username: username.trim() });
     }
   }
+  console.log(`✅ Loaded ${users.length} valid Telegram users from Sheet.`);
   return users;
 }
 
-// ═════════════════════ BINANCE ET MINI APP REST APIS ═════════════════════
+// ═════════════════════ MINI APP REST APIS ═════════════════════
 
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
-// 1. የዳሽቦርድ ውቅርና የምንዛሬ ተመን ማግኛ (System Config Endpoint)
+// 1. Unified Config & Rate
 app.get('/api/config', (req, res) => {
   res.json({
     app_name: 'Binance Ethiopia Dollar Vault',
     fx_rate: CURRENT_FX_RATE,
+    p2p_fee_percent: P2P_FEE_PERCENT,
     cbe_account: CBE_ACCOUNT,
     telebirr_phone: TELEBIRR_PHONE,
-    min_withdraw_usd: 2.00,
-    min_withdraw_etb: (2.00 * CURRENT_FX_RATE),
-    bot_username: BINANCE_BOT_USER
+    binance_pay_id: BINANCE_PAY_ID,
+    bep20_address: USDT_BEP20_ADDRESS,
+    trc20_address: USDT_TRC20_ADDRESS,
+    min_withdraw_usd: MIN_WITHDRAW_USD,
+    min_withdraw_etb: MIN_WITHDRAW_USD * CURRENT_FX_RATE,
+    bot_username: BINANCE_BOT_USER,
+    require_kyc: REQUIRE_KYC
   });
 });
 
-// 2. የተጠቃሚ ምዝገባና ማመሳከሪያ (User Auth & Sync)
+// 2. Auth & User Sync
 app.post('/api/auth', async (req, res) => {
   const { telegram_id, first_name, last_name, username, ref_by } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
-
-  if (!pool) return res.json({ user: { balance_usd: 0.00 }, isNew: false });
+  if (!pool) return res.json({ user: { balance_usd: 0.00, locked_usd: 0.00, kyc_status: 'None' }, isNew: false });
 
   try {
     const userResult = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [telegram_id.toString()]);
     if (userResult.rows.length === 0) {
       const validRef = (ref_by && ref_by !== telegram_id.toString()) ? ref_by : null;
       const insertResult = await pool.query(
-        `INSERT INTO users (telegram_id, first_name, last_name, username, balance_usd, referred_by) 
-         VALUES ($1, $2, $3, $4, 0.00, $5) RETURNING *`,
+        `INSERT INTO users (telegram_id, first_name, last_name, username, balance_usd, kyc_status, referred_by) 
+         VALUES ($1, $2, $3, $4, 0.00, 'None', $5) RETURNING *`,
         [telegram_id.toString(), first_name || 'User', last_name || '', username || '', validRef]
       );
 
@@ -439,7 +499,7 @@ app.post('/api/auth', async (req, res) => {
         );
       }
 
-      notifyAdmin(`👤 <b>አዲስ ተጠቃሚ ተመዝግቧል:</b>\nስም: ${first_name}\nID: <code>${telegram_id}</code>\nጋባዥ: ${validRef || 'የለም'}`);
+      notifyAdmin(`👤 <b>New User Registered:</b>\nName: ${first_name}\nID: <code>${telegram_id}</code>\nRef: ${validRef || 'None'}`);
       return res.json({ user: insertResult.rows[0], isNew: true });
     }
     res.json({ user: userResult.rows[0], isNew: false });
@@ -448,11 +508,35 @@ app.post('/api/auth', async (req, res) => {
   }
 });
 
-// 3. የ $0.50 ዌልካም ቦነስ (Welcome Bonus Claim)
+// 3. Submit KYC Verification
+app.post('/api/kyc/submit', async (req, res) => {
+  const { telegram_id, phone_number, full_name, national_id } = req.body;
+  if (!telegram_id || !phone_number || !full_name || !national_id) {
+    return res.status(400).json({ error: 'All KYC fields are required' });
+  }
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
+  try {
+    await pool.query(
+      `UPDATE users SET phone_number = $1, kyc_full_name = $2, national_id = $3, kyc_status = 'Pending' 
+       WHERE telegram_id = $4`,
+      [phone_number, full_name, national_id, telegram_id.toString()]
+    );
+
+    notifyAdmin(
+      `🪪 <b>New KYC Verification Submitted:</b>\n👤 User ID: <code>${telegram_id}</code>\n📛 Name: ${full_name}\n📱 Phone: ${phone_number}\n🆔 National ID: <code>${national_id}</code>\n\nApprove via Admin API: <code>/api/admin/kyc/review</code>`
+    );
+
+    res.json({ success: true, kyc_status: 'Pending', message: 'Pending (waiting for admin review in Telegram)' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Welcome Bonus ($0.50 USD)
 app.post('/api/claim-welcome', async (req, res) => {
   const { telegram_id } = req.body;
   const BONUS_USD = 0.50;
-
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
@@ -463,7 +547,7 @@ app.post('/api/claim-welcome', async (req, res) => {
     );
 
     if (update.rowCount === 0) {
-      return res.status(400).json({ error: 'ይህን የ $0.50 ቦነስ አስቀድመው ወስደዋል!' });
+      return res.status(400).json({ error: 'Welcome bonus already claimed!' });
     }
 
     await pool.query(
@@ -477,95 +561,60 @@ app.post('/api/claim-welcome', async (req, res) => {
   }
 });
 
-// 4. ጥብቅ የተቆጣጣሪ የስራ ደረጃዎች (STRICT TASK & STAGE VERIFICATION)
+// 5. Strict Task Prize Stages (1 - 4)
 app.post('/api/claim-stage', async (req, res) => {
   const { telegram_id, stage } = req.body;
   const stageNum = parseInt(stage);
-
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
     const uRes = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [telegram_id.toString()]);
-    if (uRes.rows.length === 0) return res.status(404).json({ error: 'ተጠቃሚው አልተገኘም' });
+    if (uRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     const user = uRes.rows[0];
 
     let rewardUSD = 0;
     let col = '';
 
-    // ── STAGE 1: KYC / Identity Profile Verification ($1.00) ──
     if (stageNum === 1) {
-      if (user.stage1_claimed === 1) return res.status(400).json({ error: 'Stage 1 ቀድሞ ተጠናቋል!' });
-      // ማረጋገጫ፦ ተጠቃሚው መለያው ሙሉ መሆኑን ማረጋገጥ
-      if (!user.first_name && !user.username) {
-        return res.status(400).json({ error: 'እባክዎ በመጀመሪያ የቴሌግራም መለያዎን ያሟሉ!' });
+      if (user.stage1_claimed === 1) return res.status(400).json({ error: 'Stage 1 already claimed' });
+      if (REQUIRE_KYC && user.kyc_status !== 'Approved') {
+        return res.status(400).json({ error: 'Stage 1 requires KYC status to be Approved.' });
       }
       rewardUSD = 1.00; col = 'stage1_claimed';
-
-    // ── STAGE 2: Real Add Funds / Deposit Verification ($2.50) ──
     } else if (stageNum === 2) {
-      if (user.stage1_claimed !== 1) return res.status(400).json({ error: 'በቅድሚያ Stage 1ን ያጠናቁ!' });
-      if (user.stage2_claimed === 1) return res.status(400).json({ error: 'Stage 2 ቀድሞ ተጠናቋል!' });
-
-      // እውነተኛ ማረጋገጫ፦ በዳታቤዝ ውስጥ ጸድቆ የገባ ተቀማጭ ክፍያ መኖሩን ማረጋገጥ
-      const depCheck = await pool.query(
-        `SELECT COUNT(*) FROM deposits WHERE telegram_id = $1 AND status = 'APPROVED'`,
-        [telegram_id.toString()]
-      );
-
+      if (user.stage1_claimed !== 1) return res.status(400).json({ error: 'Complete Stage 1 first' });
+      if (user.stage2_claimed === 1) return res.status(400).json({ error: 'Stage 2 already claimed' });
+      const depCheck = await pool.query(`SELECT COUNT(*) FROM deposits WHERE telegram_id = $1 AND status = 'APPROVED'`, [telegram_id.toString()]);
       if (parseInt(depCheck.rows[0].count) === 0) {
-        return res.status(400).json({ 
-          error: 'Stage 2ን ለመውሰድ ቢያንስ አንድ የተረጋገጠ Add Funds / Deposit በቴሌብር፣ በCBE ወይም በUSDT ማስገባት አለብዎት!' 
-        });
+        return res.status(400).json({ error: 'Stage 2 requires at least 1 approved Add Funds deposit.' });
       }
       rewardUSD = 2.50; col = 'stage2_claimed';
-
-    // ── STAGE 3: Real Active 5 Invites Verification ($5.00) ──
     } else if (stageNum === 3) {
-      if (user.stage2_claimed !== 1) return res.status(400).json({ error: 'በቅድሚያ Stage 2ን ያጠናቁ!' });
-      if (user.stage3_claimed === 1) return res.status(400).json({ error: 'Stage 3 ቀድሞ ተጠናቋል!' });
-
-      // እውነተኛ ማረጋገጫ፦ በዳታቤዝ ውስጥ የተመዘገቡ ቢያንስ 5 ጓደኞች መኖራቸውን ማረጋገጥ
-      const refCheck = await pool.query(
-        `SELECT COUNT(*) FROM referrals WHERE referrer_id = $1`,
-        [telegram_id.toString()]
-      );
-      const inviteCount = parseInt(refCheck.rows[0].count);
-
-      if (inviteCount < 5) {
-        return res.status(400).json({ 
-          error: `Stage 3ን ለመውሰድ ቢያንስ 5 ጓደኞችን መጋበዝ አለብዎት! (የጋበዙት: ${inviteCount}/5)` 
-        });
-      }
-      rewardUSD = 5.00; col = 'stage3_claimed';
-
-    // ── STAGE 4: VIP Champion Verification ($40.00 MEGA) ──
-    } else if (stageNum === 4) {
-      if (user.stage3_claimed !== 1) return res.status(400).json({ error: 'በቅድሚያ Stage 3ን ያጠናቁ!' });
-      if (user.stage4_claimed === 1) return res.status(400).json({ error: 'Stage 4 ቀድሞ ተጠናቋል!' });
-
-      // እውነተኛ ማረጋገጫ፦ ወይ 20 ጓደኛ ጋብዟል አለበለዚያ ቢያንስ $16 ዶላር ዲፖዚት አድርጓል
+      if (user.stage2_claimed !== 1) return res.status(400).json({ error: 'Complete Stage 2 first' });
+      if (user.stage3_claimed === 1) return res.status(400).json({ error: 'Stage 3 already claimed' });
       const refCheck = await pool.query(`SELECT COUNT(*) FROM referrals WHERE referrer_id = $1`, [telegram_id.toString()]);
       const inviteCount = parseInt(refCheck.rows[0].count);
-
-      const depSum = await pool.query(
-        `SELECT COALESCE(SUM(amount_usd), 0) as total_usd FROM deposits WHERE telegram_id = $1 AND status = 'APPROVED'`,
-        [telegram_id.toString()]
-      );
-      const totalDepositedUSD = parseFloat(depSum.rows[0].total_usd);
-
-      if (inviteCount < 20 && totalDepositedUSD < 16.00) {
-        return res.status(400).json({ 
-          error: `Stage 4 VIP ለመውሰድ ወይ 20 ጓደኛ መጋበዝ (${inviteCount}/20) ወይም ቢያንስ $16 ዲፖዚት ማድረግ (አሁን ያለዎት: $${totalDepositedUSD.toFixed(2)}/16) አለብዎት!` 
-        });
+      if (inviteCount < 5) {
+        return res.status(400).json({ error: `Stage 3 requires 5 active invites (${inviteCount}/5).` });
+      }
+      rewardUSD = 5.00; col = 'stage3_claimed';
+    } else if (stageNum === 4) {
+      if (user.stage3_claimed !== 1) return res.status(400).json({ error: 'Complete Stage 3 first' });
+      if (user.stage4_claimed === 1) return res.status(400).json({ error: 'Stage 4 already claimed' });
+      const refCheck = await pool.query(`SELECT COUNT(*) FROM referrals WHERE referrer_id = $1`, [telegram_id.toString()]);
+      const inviteCount = parseInt(refCheck.rows[0].count);
+      const depSum = await pool.query(`SELECT COALESCE(SUM(amount_usd), 0) AS total_usd FROM deposits WHERE telegram_id = $1 AND status = 'APPROVED'`, [telegram_id.toString()]);
+      const totalDep = parseFloat(depSum.rows[0].total_usd);
+      if (inviteCount < 20 && totalDep < 16.00) {
+        return res.status(400).json({ error: `Stage 4 requires 20 invites (${inviteCount}/20) OR $16 approved funds ($${totalDep.toFixed(2)}/$16).` });
       }
       rewardUSD = 40.00; col = 'stage4_claimed';
     } else {
-      return res.status(400).json({ error: 'Invalid stage number' });
+      return res.status(400).json({ error: 'Invalid stage' });
     }
 
     const upRes = await pool.query(
-      `UPDATE users SET balance_usd = balance_usd + $1, ${col} = 1 
-       WHERE telegram_id = $2 AND ${col} = 0 RETURNING balance_usd`,
+      `UPDATE users SET balance_usd = balance_usd + $1, ${col} = 1 WHERE telegram_id = $2 AND ${col} = 0 RETURNING balance_usd`,
       [rewardUSD, telegram_id.toString()]
     );
 
@@ -580,21 +629,19 @@ app.post('/api/claim-stage', async (req, res) => {
   }
 });
 
-// 5. ገንዘብ ማስገቢያ (Add Funds - Renamed from Deposit)
+// 6. Add Funds / Deposit Submission
 const handleAddFunds = async (req, res) => {
   const { telegram_id, currency, amount, payment_method, transaction_ref } = req.body;
-  if (!transaction_ref || !amount) return res.status(400).json({ error: 'Amount and TxID are required' });
+  if (!telegram_id || !transaction_ref || !amount) return res.status(400).json({ error: 'Amount and TxID are required' });
 
   const amountVal = parseFloat(amount);
   const amountUSD = currency === 'ETB' ? (amountVal / CURRENT_FX_RATE) : amountVal;
-
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
     const exist = await pool.query('SELECT * FROM deposits WHERE transaction_ref = $1', [transaction_ref.trim()]);
-    if (exist.rows.length > 0) return res.status(400).json({ error: 'ይህ የደረሰኝ ቁጥር አስቀድሞ አገልግሎት ላይ ውሏል!' });
+    if (exist.rows.length > 0) return res.status(400).json({ error: 'This Transaction ID has already been submitted!' });
 
-    // የክፍያ ማረጋገጫ ሰርቨርን መፈተሽ (Verify Server)
     const verification = await checkWithVerifyServer(payment_method, transaction_ref, amountVal);
 
     let status = 'PENDING';
@@ -603,7 +650,7 @@ const handleAddFunds = async (req, res) => {
       await pool.query('UPDATE users SET balance_usd = balance_usd + $1 WHERE telegram_id = $2', [amountUSD, telegram_id.toString()]);
       await pool.query(
         `INSERT INTO transactions (telegram_id, type, amount_usd, details) VALUES ($1, 'ADD_FUNDS', $2, $3)`,
-        [telegram_id.toString(), amountUSD, `Auto-Verified Add Funds: ${transaction_ref}`]
+        [telegram_id.toString(), amountUSD, `Auto-Verified: ${transaction_ref}`]
       );
     }
 
@@ -614,15 +661,15 @@ const handleAddFunds = async (req, res) => {
     );
 
     notifyAdmin(
-      `💰 <b>አዲስ ገንዘብ ገቢ ተደረገ (${status}):</b>\n👤 ID: <code>${telegram_id}</code>\n💵 መጠን: <b>${amountVal} ${currency}</b> (≈ $${amountUSD.toFixed(2)} USD)\n🏦 መንገድ: ${payment_method}\n🧾 ደረሰኝ: <code>${transaction_ref}</code>\n🤖 ፍተሻ: ${status === 'APPROVED' ? '✅ በራስ-ሰር ጸድቋል' : '⏳ በእጅ ማረጋገጫ ይጠብቃል'}`
+      `💰 <b>Add Funds (${status}):</b>\n👤 ID: <code>${telegram_id}</code>\n💵 Amount: <b>${amountVal} ${currency}</b> (≈ $${amountUSD.toFixed(2)})\n🏦 Method: ${payment_method}\n🧾 Ref: <code>${transaction_ref}</code>`
     );
 
     res.json({
       success: true,
       verified: status === 'APPROVED',
-      message: status === 'APPROVED' 
-        ? `🎉 ክፍያዎ በራስ-ሰር ተረጋግጦ $${amountUSD.toFixed(2)} USD ወደ አሴት ቦርሳዎ ገቢ ሆኗል!` 
-        : 'የክፍያ ማረጋገጫዎ ደርሶናል፤ ተጣርቶ በ 5-15 ደቂቃ ውስጥ አካውንትዎ ላይ ገቢ ይደረጋል።',
+      message: status === 'APPROVED'
+        ? `🎉 Verified! $${amountUSD.toFixed(2)} USD added to your Vault.`
+        : 'Receipt submitted! Awaiting admin verification (5–15 mins).',
       deposit_id: ins.rows[0].id
     });
   } catch (err) {
@@ -631,21 +678,18 @@ const handleAddFunds = async (req, res) => {
 };
 
 app.post('/api/funds/add', handleAddFunds);
-app.post('/api/deposit/submit', handleAddFunds); // የኋላ ተኳሃኝነት (Backward compatibility)
+app.post('/api/deposit/submit', handleAddFunds);
 
-// 6. ቪዛ እና ማስተርካርድ ሽያጭ (Sell VISA & MASTERCARD - $1.50)
+// 7. Store: Virtual Cards (VISA & MASTERCARD) & Phone Numbers
 app.post('/api/cards/order', async (req, res) => {
   const { telegram_id, card_type, transaction_ref } = req.body;
-  if (!transaction_ref) return res.status(400).json({ error: 'የደረሰኝ ቁጥር (TxID) ያስገቡ' });
+  if (!transaction_ref) return res.status(400).json({ error: 'Transaction ID is required' });
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   const chosenType = (card_type && card_type.toUpperCase().includes('MASTER')) ? 'MASTERCARD' : 'VISA';
-  
-  // Visa የሚጀምረው በ 4129 ሲሆን Mastercard ደግሞ በ 5326 ይጀምራል
   const prefix = chosenType === 'MASTERCARD' ? '5326' : '4129';
-  const randomCard = prefix + ' ' + Math.floor(1000 + Math.random() * 9000) + ' ' + Math.floor(1000 + Math.random() * 9000) + ' ' + Math.floor(1000 + Math.random() * 9000);
+  const randomCard = `${prefix} ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`;
   const randomCVV = Math.floor(100 + Math.random() * 900).toString();
-
-  if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
     await pool.query(
@@ -659,11 +703,11 @@ app.post('/api/cards/order', async (req, res) => {
       [telegram_id.toString(), `${chosenType} Card Activation`]
     );
 
-    notifyAdmin(`💳 <b>አዲስ የ ${chosenType} ካርድ ትዕዛዝ:</b>\n👤 ID: <code>${telegram_id}</code>\n🧾 ደረሰኝ: <code>${transaction_ref}</code>\n💳 ካርድ: <code>${randomCard}</code>`);
+    notifyAdmin(`💳 <b>New ${chosenType} Order:</b>\n👤 ID: <code>${telegram_id}</code>\n🧾 Ref: <code>${transaction_ref}</code>`);
 
     res.json({
       success: true,
-      message: `🎉 የእርስዎ ${chosenType} ካርድ በተሳካ ሁኔታ ተፈጥሯል!`,
+      message: `🎉 Your ${chosenType} card is now active!`,
       card: { type: chosenType, number: randomCard, expiry: '12/29', cvv: randomCVV, balance_usd: 0.00 }
     });
   } catch (err) {
@@ -671,70 +715,56 @@ app.post('/api/cards/order', async (req, res) => {
   }
 });
 
-// 7. የውጭ ስልክ ቁጥር ማዘዣ ($1.50)
 app.post('/api/services/buy-number', async (req, res) => {
   const { telegram_id, country, service } = req.body;
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
   const fakePhone = (country === 'UK' ? '+44 ' : '+1 ') + Math.floor(2000000000 + Math.random() * 8000000000);
   const fakeOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
-  if (!pool) return res.status(500).json({ error: 'Database not connected' });
-
   try {
     await pool.query(
-      `INSERT INTO phone_orders (telegram_id, country, service, phone_number, otp_code) 
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO phone_orders (telegram_id, country, service, phone_number, otp_code) VALUES ($1, $2, $3, $4, $5)`,
       [telegram_id.toString(), country || 'US', service || 'TikTok', fakePhone, fakeOTP]
     );
-
     await pool.query(
       `INSERT INTO transactions (telegram_id, type, amount_usd, details) VALUES ($1, 'PHONE_ORDER', 1.50, $2)`,
-      [telegram_id.toString(), `Virtual Number for ${service}`]
+      [telegram_id.toString(), `Virtual Number (${service})`]
     );
-
-    res.json({
-      success: true,
-      phone_number: fakePhone,
-      otp_code: fakeOTP,
-      service: service
-    });
+    res.json({ success: true, phone_number: fakePhone, otp_code: fakeOTP, service });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 8. ዶላር ማውጣት (Withdrawal - Min: $2.00)
+// 8. Withdrawals (Min $2.00)
 app.post('/api/withdraw', async (req, res) => {
   const { telegram_id, amount_usd, payment_method, account_number } = req.body;
   const amount = parseFloat(amount_usd);
-
-  if (amount < 2.00) return res.status(400).json({ error: `ዝቅተኛው የማውጣት መጠን $2.00 USD (${(2 * CURRENT_FX_RATE)} ETB) ነው።` });
-
+  if (amount < MIN_WITHDRAW_USD) {
+    return res.status(400).json({ error: `Minimum withdrawal is $${MIN_WITHDRAW_USD.toFixed(2)} USD.` });
+  }
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
     const deduct = await pool.query(
-      `UPDATE users SET balance_usd = balance_usd - $1 
-       WHERE telegram_id = $2 AND balance_usd >= $1 RETURNING balance_usd`,
+      `UPDATE users SET balance_usd = balance_usd - $1 WHERE telegram_id = $2 AND balance_usd >= $1 RETURNING balance_usd`,
       [amount, telegram_id.toString()]
     );
-
-    if (deduct.rowCount === 0) return res.status(400).json({ error: 'በቂ የዶላር ቀሪ ሂሳብ የለዎትም!' });
+    if (deduct.rowCount === 0) return res.status(400).json({ error: 'Insufficient Vault balance!' });
 
     const amountETB = amount * CURRENT_FX_RATE;
     await pool.query(
-      `INSERT INTO withdrawals (telegram_id, amount_usd, amount_etb, payment_method, account_number) 
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO withdrawals (telegram_id, amount_usd, amount_etb, payment_method, account_number) VALUES ($1, $2, $3, $4, $5)`,
       [telegram_id.toString(), amount, amountETB, payment_method, account_number]
     );
 
-    notifyAdmin(
-      `🚨 <b>አዲስ የገንዘብ ማውጣት ጥያቄ:</b>\n👤 ID: <code>${telegram_id}</code>\n💵 መጠን: <b>$${amount} USD</b> (${amountETB.toLocaleString()} ETB)\n🏦 መንገድ: ${payment_method}\n💳 አካውንት: <code>${account_number}</code>`
-    );
+    notifyAdmin(`🚨 <b>Withdrawal Request:</b>\n👤 ID: <code>${telegram_id}</code>\n💵 $${amount} (${amountETB.toLocaleString()} ETB)\n🏦 ${payment_method}: <code>${account_number}</code>`);
 
     res.json({
       success: true,
       balance_usd: parseFloat(deduct.rows[0].balance_usd),
-      message: 'የማውጣት ጥያቄዎ ደርሷል፤ በቅርቡ ወደ አካውንትዎ ይላካል!'
+      message: 'Withdrawal request submitted!'
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -745,7 +775,6 @@ app.post('/api/withdraw', async (req, res) => {
 app.post('/api/daily-spin', async (req, res) => {
   const { telegram_id } = req.body;
   const now = new Date();
-
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
@@ -756,7 +785,7 @@ app.post('/api/daily-spin', async (req, res) => {
     if (user.last_spin_at) {
       const hoursDiff = (now - new Date(user.last_spin_at)) / (1000 * 60 * 60);
       if (hoursDiff < 24) {
-        return res.status(400).json({ error: `የቀጣይ ዕድል በ ${(24 - hoursDiff).toFixed(1)} ሰዓት ውስጥ ይከፈታል።` });
+        return res.status(400).json({ error: `Next spin available in ${(24 - hoursDiff).toFixed(1)} hours.` });
       }
     }
 
@@ -777,7 +806,13 @@ app.post('/api/daily-spin', async (req, res) => {
 app.get('/api/p2p/ads', async (req, res) => {
   if (!pool) return res.json([]);
   try {
-    const ads = await pool.query(`SELECT * FROM p2p_ads WHERE status = 'ACTIVE' ORDER BY id DESC`);
+    const ads = await pool.query(`
+      SELECT a.*, u.kyc_status 
+      FROM p2p_ads a
+      LEFT JOIN users u ON a.creator_id = u.telegram_id
+      WHERE a.status = 'ACTIVE' 
+      ORDER BY a.id DESC
+    `);
     res.json(ads.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -789,20 +824,25 @@ app.post('/api/p2p/ads/create', async (req, res) => {
   if (!telegram_id || !trade_type || !price_etb || !amount_usd) {
     return res.status(400).json({ error: 'Missing required ad parameters' });
   }
-
-  const amtUSD = parseFloat(amount_usd);
-  const rateETB = parseFloat(price_etb);
-
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
+    const uRes = await pool.query('SELECT kyc_status FROM users WHERE telegram_id = $1', [telegram_id.toString()]);
+    if (REQUIRE_KYC && (!uRes.rows[0] || uRes.rows[0].kyc_status !== 'Approved')) {
+      return res.status(403).json({ error: 'KYC verification is required before posting P2P ads.' });
+    }
+
+    const amtUSD = parseFloat(amount_usd);
+    const rateETB = parseFloat(price_etb);
+
     if (trade_type.toUpperCase() === 'SELL') {
       const lockRes = await pool.query(
-        `UPDATE users SET balance_usd = balance_usd - $1 WHERE telegram_id = $2 AND balance_usd >= $1 RETURNING balance_usd`,
+        `UPDATE users SET balance_usd = balance_usd - $1, locked_usd = locked_usd + $1 
+         WHERE telegram_id = $2 AND balance_usd >= $1 RETURNING balance_usd`,
         [amtUSD, telegram_id.toString()]
       );
       if (lockRes.rowCount === 0) {
-        return res.status(400).json({ error: 'የሽያጭ ማስታወቂያ ለመልቀቅ በቂ ዶላር የለዎትም!' });
+        return res.status(400).json({ error: 'Insufficient USD Vault balance to post SELL ad.' });
       }
     }
 
@@ -821,42 +861,41 @@ app.post('/api/p2p/ads/create', async (req, res) => {
       ]
     );
 
-    notifyAdmin(
-      `📢 <b>አዲስ የ P2P ማስታወቂያ ተለጥፏል:</b>\n👤 ነጋዴ: ${creator_name} (<code>${telegram_id}</code>)\n🔄 አይነት: <b>${trade_type.toUpperCase()} USDT</b>\n💵 ዋጋ: <b>${rateETB} ETB</b>\n💰 መጠን: <b>$${amtUSD} USD</b>`
-    );
-
-    res.json({ success: true, ad: adRes.rows[0], message: 'ማስታወቂያዎ በዳታቤዝ ተመዝግቧል!' });
+    notifyAdmin(`📢 <b>New P2P Ad:</b> ${creator_name} (${trade_type.toUpperCase()} $${amtUSD} @ ${rateETB} ETB)`);
+    res.json({ success: true, ad: adRes.rows[0], message: 'P2P Ad published!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.post('/api/p2p/trades/create', async (req, res) => {
-  const { buyer_id, ad_id, amount_etb, payment_method } = req.body;
-  if (!buyer_id || !ad_id || !amount_etb) return res.status(400).json({ error: 'Missing parameters' });
-
+  const { buyer_id, ad_id, amount_etb, payment_method, receiving_id } = req.body;
+  if (!buyer_id || !ad_id || !amount_etb) return res.status(400).json({ error: 'Missing trade parameters' });
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
+    const uRes = await pool.query('SELECT kyc_status FROM users WHERE telegram_id = $1', [buyer_id.toString()]);
+    if (REQUIRE_KYC && (!uRes.rows[0] || uRes.rows[0].kyc_status !== 'Approved')) {
+      return res.status(403).json({ error: 'KYC verification is required before trading.' });
+    }
+
     const adRes = await pool.query('SELECT * FROM p2p_ads WHERE id = $1 AND status = $2', [ad_id, 'ACTIVE']);
-    if (adRes.rows.length === 0) return res.status(404).json({ error: 'ማስታወቂያው አልተገኘም' });
+    if (adRes.rows.length === 0) return res.status(404).json({ error: 'Ad not found or inactive' });
 
     const ad = adRes.rows[0];
     const etbAmt = parseFloat(amount_etb);
-    const usdtAmt = parseFloat((etbAmt / parseFloat(ad.price_etb)).toFixed(2));
+    const rawUsdt = etbAmt / parseFloat(ad.price_etb);
+    const calc = calcOrder(rawUsdt, parseFloat(ad.price_etb), P2P_FEE_PERCENT);
+
     const tradeCode = 'P2P-' + Math.floor(100000 + Math.random() * 900000);
-
     const tradeRes = await pool.query(
-      `INSERT INTO p2p_trades (trade_code, ad_id, buyer_id, seller_id, amount_usd, amount_etb, price_rate, payment_method, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING') RETURNING *`,
-      [tradeCode, ad.id, buyer_id.toString(), ad.creator_id, usdtAmt, etbAmt, ad.price_etb, payment_method || 'Telebirr/CBE']
+      `INSERT INTO p2p_trades (trade_code, ad_id, buyer_id, seller_id, amount_usd, fee_usd, net_usd, amount_etb, price_rate, payment_method, receiving_id, status, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'PENDING', NOW() + INTERVAL '15 minutes') RETURNING *`,
+      [tradeCode, ad.id, buyer_id.toString(), ad.creator_id, calc.gross, calc.fee, calc.net, calc.etbTotal, ad.price_etb, payment_method || 'Telebirr/CBE', receiving_id || '']
     );
 
-    notifyAdmin(
-      `🤝 <b>አዲስ P2P ግብይት (${tradeCode}):</b>\n👤 ገዢ: <code>${buyer_id}</code>\n👤 ሻጭ: <code>${ad.creator_id}</code>\n💵 የብር መጠን: <b>${etbAmt} ETB</b>\n🪙 የሚለቀቅ: <b>${usdtAmt} USDT</b>`
-    );
-
-    res.json({ success: true, trade: tradeRes.rows[0], message: 'ትዕዛዝ ተፈጥሯል፤ ክፍያውን ፈጽመው የደረሰኝ ቁጥር ያስገቡ።' });
+    notifyAdmin(`🤝 <b>P2P Trade (${tradeCode}):</b>\nBuyer: <code>${buyer_id}</code>\nGross: $${calc.gross} | Fee (3%): $${calc.fee} | Net: $${calc.net}\nETB: ${calc.etbTotal}`);
+    res.json({ success: true, trade: tradeRes.rows[0], message: 'Order created! Complete payment within 15 minutes.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -864,14 +903,22 @@ app.post('/api/p2p/trades/create', async (req, res) => {
 
 app.post('/api/p2p/trades/mark-paid', async (req, res) => {
   const { trade_code, payment_ref } = req.body;
-  if (!trade_code || !payment_ref) return res.status(400).json({ error: 'Code and Ref required' });
-
+  if (!trade_code || !payment_ref) return res.status(400).json({ error: 'Trade code and payment reference required' });
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
+    const tRes = await pool.query('SELECT * FROM p2p_trades WHERE trade_code = $1', [trade_code]);
+    if (tRes.rows.length === 0) return res.status(404).json({ error: 'Trade not found' });
+    const trade = tRes.rows[0];
+
+    if (trade.expires_at && new Date(trade.expires_at) < new Date()) {
+      await pool.query(`UPDATE p2p_trades SET status = 'EXPIRED' WHERE trade_code = $1`, [trade_code]);
+      return res.status(400).json({ error: 'Order has expired (15-minute window passed).' });
+    }
+
     await pool.query(`UPDATE p2p_trades SET status = 'PAID', payment_ref = $1 WHERE trade_code = $2`, [payment_ref.trim(), trade_code]);
-    notifyAdmin(`🧾 <b>P2P ክፍያ ተፈጽሟል (${trade_code}):</b>\nደረሰኝ: <code>${payment_ref}</code>`);
-    res.json({ success: true, message: 'ማረጋገጫዎ ደርሷል፤ ክሪፕቶው በ Escrow ይለቀቃል።' });
+    notifyAdmin(`🧾 <b>P2P Paid (${trade_code}):</b> Ref: <code>${payment_ref}</code>`);
+    res.json({ success: true, message: 'Payment proof submitted! Awaiting verification.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -880,19 +927,20 @@ app.post('/api/p2p/trades/mark-paid', async (req, res) => {
 app.post('/api/p2p/trades/release', async (req, res) => {
   const { trade_code } = req.body;
   if (!trade_code) return res.status(400).json({ error: 'Trade code required' });
-
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
     const tRes = await pool.query('SELECT * FROM p2p_trades WHERE trade_code = $1 AND status IN ($2, $3)', [trade_code, 'PENDING', 'PAID']);
-    if (tRes.rows.length === 0) return res.status(404).json({ error: 'Trade not found' });
+    if (tRes.rows.length === 0) return res.status(404).json({ error: 'Trade not found or already released' });
 
     const trade = tRes.rows[0];
-    await pool.query('UPDATE users SET balance_usd = balance_usd + $1 WHERE telegram_id = $2', [trade.amount_usd, trade.buyer_id]);
+    const releaseAmt = parseFloat(trade.net_usd) > 0 ? parseFloat(trade.net_usd) : parseFloat(trade.amount_usd);
+
+    await pool.query('UPDATE users SET balance_usd = balance_usd + $1 WHERE telegram_id = $2', [releaseAmt, trade.buyer_id]);
     await pool.query('UPDATE p2p_trades SET status = $1 WHERE trade_code = $2', ['RELEASED', trade_code]);
 
-    notifyAdmin(`✅ <b>P2P ተጠናቋል (${trade_code}):</b>\nለገዢው <b>$${trade.amount_usd} USDT</b> ተለቋል!`);
-    res.json({ success: true, message: `$${trade.amount_usd} USDT ለገዢው ተለቋል!` });
+    notifyAdmin(`✅ <b>P2P Released (${trade_code}):</b> $${releaseAmt} USDT credited to <code>${trade.buyer_id}</code>`);
+    res.json({ success: true, message: `$${releaseAmt} USDT released to buyer!` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -900,7 +948,6 @@ app.post('/api/p2p/trades/release', async (req, res) => {
 
 // ═════════════════════ WIDE ADMIN CONTROL APIS ═════════════════════
 
-// 1. አጠቃላይ ሲስተም ስታቲስቲክስ
 app.get('/api/admin/stats', auth, async (req, res) => {
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
   try {
@@ -908,6 +955,7 @@ app.get('/api/admin/stats', auth, async (req, res) => {
     const totalVaultUSD = await pool.query('SELECT COALESCE(SUM(balance_usd), 0) FROM users');
     const totalDeps = await pool.query("SELECT COUNT(*), COALESCE(SUM(amount_usd), 0) FROM deposits WHERE status = 'APPROVED'");
     const pendingWiths = await pool.query("SELECT COUNT(*), COALESCE(SUM(amount_usd), 0) FROM withdrawals WHERE status = 'PENDING'");
+    const pendingKycs = await pool.query("SELECT COUNT(*) FROM users WHERE kyc_status = 'Pending'");
     const totalCards = await pool.query('SELECT COUNT(*) FROM virtual_cards');
 
     res.json({
@@ -916,6 +964,7 @@ app.get('/api/admin/stats', auth, async (req, res) => {
       active_dollar_rate: CURRENT_FX_RATE,
       total_approved_deposits_usd: parseFloat(totalDeps.rows[0].coalesce),
       pending_withdrawals_count: parseInt(pendingWiths.rows[0].count),
+      pending_kyc_count: parseInt(pendingKycs.rows[0].count),
       total_cards_issued: parseInt(totalCards.rows[0].count)
     });
   } catch (err) {
@@ -923,7 +972,6 @@ app.get('/api/admin/stats', auth, async (req, res) => {
   }
 });
 
-// 2. የምንዛሬ ዋጋ መቀየሪያ (Set Dynamic Dollar Rate)
 app.post('/api/admin/set-rate', auth, async (req, res) => {
   const { rate } = req.body;
   const newRate = parseFloat(rate);
@@ -932,32 +980,44 @@ app.post('/api/admin/set-rate', auth, async (req, res) => {
   CURRENT_FX_RATE = newRate;
   if (pool) {
     await pool.query(
-      `INSERT INTO system_settings (key, value) VALUES ('fx_rate', $1) 
-       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      `INSERT INTO system_settings (key, value) VALUES ('fx_rate', $1) ON CONFLICT (key) DO UPDATE SET value = $1`,
       [newRate.toString()]
     );
   }
-  notifyAdmin(`⚙️ <b>የምንዛሬ ተመን ተቀይሯል:</b>\nአዲሱ ተመን: 1 USD = <b>${newRate} ETB</b>`);
+  notifyAdmin(`⚙️ <b>Dollar Rate Updated:</b> 1 USD = <b>${newRate} ETB</b>`);
   res.json({ success: true, message: `Dollar rate updated to 1 USD = ${newRate} ETB` });
 });
 
-// 3. ያልጸደቁ ዲፖዚቶች እና ዊዝድሮዎች
 app.get('/api/admin/pending', auth, async (req, res) => {
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
   try {
     const deps = await pool.query(`SELECT * FROM deposits WHERE status = 'PENDING' ORDER BY id DESC`);
     const withs = await pool.query(`SELECT * FROM withdrawals WHERE status = 'PENDING' ORDER BY id DESC`);
-    res.json({ pending_deposits: deps.rows, pending_withdrawals: withs.rows });
+    const kycs = await pool.query(`SELECT telegram_id, first_name, username, phone_number, kyc_full_name, national_id FROM users WHERE kyc_status = 'Pending' ORDER BY id DESC`);
+    res.json({ pending_deposits: deps.rows, pending_withdrawals: withs.rows, pending_kycs: kycs.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 4. ዲፖዚት ማጽደቂያ
+app.post('/api/admin/kyc/review', auth, async (req, res) => {
+  const { telegram_id, decision } = req.body; // 'Approved' or 'Rejected'
+  if (!telegram_id || !['Approved', 'Rejected'].includes(decision)) {
+    return res.status(400).json({ error: 'Valid telegram_id and decision (Approved/Rejected) required' });
+  }
+  if (!pool) return res.status(500).json({ error: 'Database not connected' });
+
+  try {
+    await pool.query(`UPDATE users SET kyc_status = $1 WHERE telegram_id = $2`, [decision, telegram_id.toString()]);
+    res.json({ success: true, message: `KYC for ${telegram_id} marked as ${decision}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/admin/approve-deposit', auth, async (req, res) => {
   const { deposit_id } = req.body;
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
-
   try {
     const dRes = await pool.query(`SELECT * FROM deposits WHERE id = $1 AND status = 'PENDING'`, [deposit_id]);
     if (dRes.rows.length === 0) return res.status(404).json({ error: 'Deposit not found' });
@@ -965,19 +1025,16 @@ app.post('/api/admin/approve-deposit', auth, async (req, res) => {
 
     await pool.query('UPDATE users SET balance_usd = balance_usd + $1 WHERE telegram_id = $2', [dep.amount_usd, dep.telegram_id]);
     await pool.query(`UPDATE deposits SET status = 'APPROVED' WHERE id = $1`, [deposit_id]);
-    await pool.query(`INSERT INTO transactions (telegram_id, type, amount_usd, details) VALUES ($1, 'ADD_FUNDS', $2, $3)`, [dep.telegram_id, dep.amount_usd, `Admin Approved Ref: ${dep.transaction_ref}`]);
-
-    res.json({ success: true, message: `Deposit of $${dep.amount_usd} USD approved successfully!` });
+    await pool.query(`INSERT INTO transactions (telegram_id, type, amount_usd, details) VALUES ($1, 'ADD_FUNDS', $2, $3)`, [dep.telegram_id, dep.amount_usd, `Approved Ref: ${dep.transaction_ref}`]);
+    res.json({ success: true, message: `Deposit of $${dep.amount_usd} USD approved!` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 5. ዊዝድሮ ማጽደቂያ
 app.post('/api/admin/approve-withdrawal', auth, async (req, res) => {
   const { withdrawal_id } = req.body;
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
-
   try {
     await pool.query(`UPDATE withdrawals SET status = 'COMPLETED' WHERE id = $1`, [withdrawal_id]);
     res.json({ success: true, message: 'Withdrawal marked as completed!' });
@@ -986,12 +1043,10 @@ app.post('/api/admin/approve-withdrawal', auth, async (req, res) => {
   }
 });
 
-// 6. የተጠቃሚ ቀሪ ሂሳብ በቀጥታ ማስተካከያ (Direct Credit / Debit)
 app.post('/api/admin/adjust-balance', auth, async (req, res) => {
   const { telegram_id, amount_usd, action, reason } = req.body;
   const amt = parseFloat(amount_usd);
   if (!telegram_id || !amt) return res.status(400).json({ error: 'Telegram ID and amount required' });
-
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   try {
@@ -1001,32 +1056,29 @@ app.post('/api/admin/adjust-balance', auth, async (req, res) => {
       [amt, telegram_id.toString()]
     );
     if (up.rowCount === 0) return res.status(404).json({ error: 'User not found' });
-
     await pool.query(
       `INSERT INTO transactions (telegram_id, type, amount_usd, details) VALUES ($1, 'ADMIN_ADJUST', $2, $3)`,
-      [telegram_id.toString(), amt, reason || 'Admin manual balance adjustment']
+      [telegram_id.toString(), amt, reason || 'Admin manual adjustment']
     );
-
     res.json({ success: true, new_balance_usd: parseFloat(up.rows[0].balance_usd) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ═════════════════════ BROADCAST API ROUTES (100% UNTOUCHED) ═════════════════════
+// ═════════════════════ BROADCAST API ROUTES (100% INTACT) ═════════════════════
 
 app.get('/status', (req, res) => res.json({
-  server:        'Unified Binance ET Dollar Vault + Swap Broadcast Marketing Server ✅',
+  server:         'Unified Binance ET Dollar Vault + Swap Broadcast Server running ✅',
   active_fx_rate: `1 USD = ${CURRENT_FX_RATE} ETB`,
-  app_bot:       BINANCE_BOT_TOKEN ? '✅ Active' : '❌ Missing',
-  broadcast_bot: BROADCAST_BOT_TOKEN ? '✅ Active' : '❌ Missing',
-  sheet_url:     SHEET_URL ? '✅ Set' : '❌ Missing',
-  broadcast:     broadcastJob.running ? `🔄 Running — ${broadcastJob.sent}/${broadcastJob.total}` : '⏹️ Idle'
+  app_bot:        BINANCE_BOT_TOKEN ? '✅ Active' : '❌ Missing',
+  broadcast_bot:  BROADCAST_BOT_TOKEN ? '✅ Active' : '❌ Missing',
+  sheet_url:      SHEET_URL ? '✅ Set' : '❌ Missing',
+  broadcast:      broadcastJob.running ? `🔄 Running — ${broadcastJob.sent}/${broadcastJob.total}` : '⏹️ Idle'
 }));
 
 app.post('/broadcast/start', auth, async (req, res) => {
   if (broadcastJob.running) return res.status(409).json({ error: 'Broadcast already running. Stop it first.' });
-
   const { text, photo, btnText, btnUrl, users: usersPayload, user_ids } = req.body;
   if (!text) return res.status(400).json({ error: 'text is required' });
 
@@ -1079,11 +1131,11 @@ app.get('/broadcast/status', auth, (req, res) => {
   });
 });
 
-// ═════════════════════ PROCESS LISTENERS & SERVER START ═════════════════════
+// ═════════════════════ CRASH PREVENTION & STARTUP ═════════════════════
 process.on('uncaughtException', (err) => console.error('Uncaught Exception:', err.message));
 process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason));
 
 app.listen(PORT, HOST, () => {
-  console.log(`🚀 Unified Binance Dollar Vault Server running on http://${HOST}:${PORT}`);
+  console.log(`🚀 Unified Binance ET + Broadcast Server running on http://${HOST}:${PORT}`);
   initDB();
 });
