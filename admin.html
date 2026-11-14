@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Binance Ethiopia · Master Admin &amp; Nbiyu Accounting</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root, [data-theme="dark"] {
+      --bg: #0b0e14;
+      --card: #161b26;
+      --card-alt: #1d2331;
+      --text: #e8ecf3;
+      --muted: #8b95a7;
+      --border: #252c3a;
+      --gold: #f0b90b;
+      --gold-bg: rgba(240, 185, 11, 0.12);
+      --green: #0ecb81;
+      --green-bg: rgba(14, 203, 129, 0.14);
+      --red: #f6465d;
+      --red-bg: rgba(246, 70, 93, 0.14);
+      --blue: #38bdf8;
+      --blue-bg: rgba(56, 189, 248, 0.14);
+      --purple: #a78bfa;
+      --purple-bg: rgba(167, 139, 250, 0.14);
+    }
+
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --card-alt: #f8fafc;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --gold: #d99f00;
+      --gold-bg: #fefce8;
+      --green: #059669;
+      --green-bg: #ecfdf5;
+      --red: #e11d48;
+      --red-bg: #fff1f2;
+      --blue: #0284c7;
+      --blue-bg: #f0f9ff;
+      --purple: #7c3aed;
+      --purple-bg: #f5f3ff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ═══════════════ LOGIN SCREEN ═══════════════ */
+    .login-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-box {
+      width: 100%;
+      max-width: 400px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    /* ═══════════════ DASHBOARD LAYOUT ═══════════════ */
+    .dash-wrap { display: none; flex-direction: column; min-height: 100vh; }
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 16px; }
+    .brand-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+    .nav-tabs {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      overflow-x: auto;
+      padding: 0 12px;
+      gap: 6px;
+      scrollbar-width: none;
+    }
+    .nav-tabs::-webkit-scrollbar { display: none; }
+    .nav-tab {
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-bottom: 2.5px solid transparent;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .count-pill {
+      background: var(--red);
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 800;
+    }
+
+    .main-container {
+      width: 100%;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 16px;
+      flex: 1;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; animation: fadeIn 0.15s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Grids & Cards */
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 16px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-title { font-size: 13px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    .kpi-card.etb { border-top: 3px solid var(--green); }
+    .kpi-card.usd { border-top: 3px solid var(--purple); }
+    .kpi-card.sys { border-top: 3px solid var(--gold); }
+    .kpi-val { font-size: 26px; font-weight: 900; margin: 6px 0; }
+    .kpi-sub { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+    /* Tables */
+    .table-wrap { width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 650px; }
+    th { text-align: left; padding: 10px; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+    td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+
+    /* Badges */
+    .badge { padding: 3px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 800; display: inline-block; text-transform: uppercase; }
+    .badge-green { background: var(--green-bg); color: var(--green); }
+    .badge-red { background: var(--red-bg); color: var(--red); }
+    .badge-gold { background: var(--gold-bg); color: var(--gold); }
+    .badge-purple { background: var(--purple-bg); color: var(--purple); }
+    .badge-blue { background: var(--blue-bg); color: var(--blue); }
+
+    /* Inputs & Buttons */
+    .form-group { margin-bottom: 12px; }
+    .form-label { display: block; font-size: 11.5px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+    .form-input, select, textarea {
+      width: 100%;
+      background: var(--card-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 13.5px;
+      outline: none;
+    }
+    .form-input:focus, textarea:focus { border-color: var(--gold); }
+
+    .btn {
+      padding: 9px 14px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 800;
+      font-size: 12.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-gold { background: var(--gold); color: #0b0e14; }
+    .btn-green { background: var(--green); color: #0b0e14; }
+    .btn-red { background: var(--red); color: #fff; }
+    .btn-purple { background: var(--purple); color: #0b0e14; }
+    .btn-ghost { background: var(--card-alt); color: var(--text); border: 1px solid var(--border); }
+    .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 8px; }
+    .btn-block { width: 100%; padding: 12px; font-size: 14px; }
+
+    /* Pending Item Cards (Great for mobile) */
+    .queue-item {
+      background: var(--card-alt);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .queue-meta { font-size: 12.5px; line-height: 1.6; }
+    .queue-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mono { font-family: monospace; background: rgba(255,255,255,0.06); padding: 2px 5px; border-radius: 4px; cursor: pointer; }
+
+    /* Progress Bar */
+    .progress-track { width: 100%; height: 10px; background: var(--card-alt); border-radius: 10px; overflow: hidden; margin: 10px 0; border: 1px solid var(--border); }
+    .progress-fill { height: 100%; background: var(--green); width: 0%; transition: width 0.3s; }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 100;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      width: 100%;
+      max-width: 400px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--text);
+      color: var(--bg);
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.25s;
+      z-index: 200;
+      pointer-events: none;
+    }
+    .toast.success { background: var(--green); color: #0b0e14; }
+    .toast.error { background: var(--red); color: #fff; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .empty-box { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+  <div class="login-wrap" id="loginView">
+    <div class="login-box">
+      <h2 style="font-size:20px; font-weight:900; color:var(--gold); margin-bottom:4px;">Binance Ethiopia Admin</h2>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:18px;">Master Accounting, Nbiyu Ledger &amp; Broadcast Console</p>
+
+      <div class="form-group">
+        <label class="form-label">Server URL</label>
+        <input type="text" class="form-input" id="loginServerUrl" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Admin Secret Key (ADMIN_KEY)</label>
+        <input type="password" class="form-input" id="loginAdminKey" placeholder="Enter ADMIN_KEY" />
+      </div>
+
+      <button class="btn btn-gold btn-block" id="loginBtn" onclick="attemptLogin()">Unlock Dashboard</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MAIN ADMIN DASHBOARD ═══════════════ -->
+  <div class="dash-wrap" id="dashView">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span>Binance ET · Admin</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="refreshAllData()">↻ Refresh</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" id="themeBtn">☀️ / 🌙</button>
+        <button class="btn btn-red btn-sm" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" onclick="switchPanel('overview', this)">📊 Accounting Overview</button>
+      <button class="nav-tab" onclick="switchPanel('pending', this)">
+        ⏳ Pending Approvals <span class="count-pill" id="pendingBadge">0</span>
+      </button>
+      <button class="nav-tab" onclick="switchPanel('ledger', this)">📒 Nbiyu Dollar Ledger</button>
+      <button class="nav-tab" onclick="switchPanel('users', this)">👥 Users &amp; Balances</button>
+      <button class="nav-tab" onclick="switchPanel('broadcast', this)">📢 Swap Broadcast</button>
+    </nav>
+
+    <main class="main-container">
+
+      <!-- ═══════ 1. OVERVIEW & ACCOUNTING ═══════ -->
+      <section id="panel-overview" class="panel active">
+        <div class="grid-3">
+          <!-- Owner ETB Pool -->
+          <div class="kpi-card etb">
+            <div style="font-size:12px; font-weight:700; color:var(--green);">OWNER ETB POOL (Telebirr &amp; CBE)</div>
+            <div class="kpi-val" id="kpiEtbNet">0.00 ETB</div>
+            <div style="font-size:11px; color:var(--muted);">Net Held ETB (Verified In − Paid Out)</div>
+            <div class="kpi-sub">
+              <span>In: <strong id="kpiEtbIn" style="color:var(--green);">0.00</strong></span>
+              <span>Out: <strong id="kpiEtbOut" style="color:var(--red);">0.00</strong></span>
+            </div>
+          </div>
+
+          <!-- Nbiyu Dollar Pool -->
+          <div class="kpi-card usd">
+            <div style="font-size:12px; font-weight:700; color:var(--purple);">NBIYU DOLLAR POOL (Crypto &amp; Pay IDs)</div>
+            <div class="kpi-val" id="kpiNbiyuNet">$0.00 USD</div>
+            <div style="font-size:11px; color:var(--muted);">Net Held by Nbiyu (In − Payouts)</div>
+            <div class="kpi-sub">
+              <span>In: <strong id="kpiNbiyuIn" style="color:var(--green);">$0.00</strong></span>
+              <span>Out: <strong id="kpiNbiyuOut" style="color:var(--red);">$0.00</strong></span>
+            </div>
+          </div>
+
+          <!-- System Users & Vault -->
+          <div class="kpi-card sys">
+            <div style="font-size:12px; font-weight:700; color:var(--gold);">SYSTEM USERS &amp; VAULT LIABILITY</div>
+            <div class="kpi-val" id="kpiUserVault">$0.00 USD</div>
+            <div style="font-size:11px; color:var(--muted);">Total User Vault Balances</div>
+            <div class="kpi-sub">
+              <span>Users: <strong id="kpiTotalUsers">0</strong> (KYC: <strong id="kpiVerifiedUsers">0</strong>)</span>
+              <span>Banned: <strong id="kpiBannedUsers" style="color:var(--red);">0</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Nbiyu Breakdown by Channel -->
+          <div class="card">
+            <div class="card-title">
+              <span>Nbiyu Wallets Breakdown</span>
+              <span class="badge badge-purple">Live SQL Sum</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Channel / Wallet</th><th>Total IN ($)</th><th>Total OUT ($)</th><th>Net ($)</th><th>TXs</th></tr>
+                </thead>
+                <tbody id="channelBreakdownBody">
+                  <tr><td colspan="5" class="empty-box">No dollar ledger transactions yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Dollar Exchange Rate & Active Wallets -->
+          <div class="card">
+            <div class="card-title"><span>Live Exchange Rate &amp; Config</span></div>
+            <div class="form-group">
+              <label class="form-label">Active Dollar Rate (1 USD = ? ETB)</label>
+              <div style="display:flex; gap:8px;">
+                <input type="number" class="form-input" id="adminFxInput" step="0.01" />
+                <button class="btn btn-gold" onclick="updateFxRate()">Update Rate</button>
+              </div>
+            </div>
+            <div style="font-size:12px; color:var(--muted); margin-top:12px;">
+              <strong style="color:var(--text); display:block; margin-bottom:6px;">Configured Receiving Wallets (from server.js):</strong>
+              <div id="configuredWalletsSummary" style="line-height:1.7;">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════ 2. PENDING APPROVALS ═══════ -->
+      <section id="panel-pending" class="panel">
+        <div class="grid-2">
+          <!-- Pending Add Funds / Deposits -->
+          <div class="card">
+            <div class="card-title"><span>Pending Add Funds (Manual Review)</span><span class="badge badge-gold" id="cntDep">0</span></div>
+            <div id="pendingDepositsList"><div class="empty-box">No pending deposits.</div></div>
+          </div>
+
+          <!-- Pending Withdrawals -->
+          <div class="card">
+            <div class="card-title"><span>Pending Withdrawals</span><span class="badge badge-red" id="cntWith">0</span></div>
+            <div id="pendingWithdrawalsList"><div class="empty-box">No pending withdrawals.</div></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Pending KYC Reviews -->
+          <div class="card">
+            <div class="card-title"><span>Pending KYC Verifications</span><span class="badge badge-blue" id="cntKyc">0</span></div>
+            <div id="pendingKycsList"><div class="empty-box">No pending KYC requests.</div></div>
+          </div>
+
+          <!-- Active P2P Trades -->
+          <div class="card">
+            <div class="card-title"><span>Active P2P Escrow Trades</span><span class="badge badge-purple" id="cntP2p">0</span></div>
+            <div id="activeP2pTradesList"><div class="empty-box">No active P2P trades.</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════ 3. NBIYU DOLLAR LEDGER ═══════ -->
+      <section id="panel-ledger" class="panel">
+        <div class="card">
+          <div class="card-title">
+            <span>Immutable Nbiyu Dollar Ledger (Exact Time in EAT)</span>
+            <button class="btn btn-green btn-sm" onclick="exportLedgerCSV()">⬇ Export CSV</button>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+            <select class="form-input" id="ledgerDirFilter" style="width:140px;" onchange="renderLedgerTable()">
+              <option value="ALL">All Directions</option>
+              <option value="IN">IN (Received)</option>
+              <option value="OUT">OUT (Paid Out)</option>
+            </select>
+            <input type="text" class="form-input" id="ledgerSearch" placeholder="Search TxRef, User, Channel..." style="flex:1; min-width:200px;" oninput="renderLedgerTable()" />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>TX Code</th>
+                  <th>Dir</th>
+                  <th>User</th>
+                  <th>Channel &amp; Wallet</th>
+                  <th>Amount ($)</th>
+                  <th>TxRef</th>
+                  <th>Verified By</th>
+                  <th>Exact Time (EAT)</th>
+                </tr>
+              </thead>
+              <tbody id="ledgerTableBody">
+                <tr><td colspan="8" class="empty-box">Loading ledger...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════ 4. USERS & BALANCES ═══════ -->
+      <section id="panel-users" class="panel">
+        <div class="card">
+          <div class="card-title"><span>Registered Users &amp; Fraud Monitor</span></div>
+          <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <input type="text" class="form-input" id="userSearchInput" placeholder="Search Telegram ID, Name, or @username..." onkeydown="if(event.key==='Enter') loadUsers()" />
+            <button class="btn btn-gold" onclick="loadUsers()">Search</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Telegram ID</th>
+                  <th>Name / Handle</th>
+                  <th>Balance ($)</th>
+                  <th>KYC</th>
+                  <th>Fake Strikes</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr><td colspan="7" class="empty-box">Loading users...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════ 5. SWAP BROADCAST ENGINE ═══════ -->
+      <section id="panel-broadcast" class="panel">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><span>Compose Telegram Broadcast</span></div>
+
+            <div class="form-group">
+              <label class="form-label">Audience</label>
+              <select class="form-input" id="bcAudience" onchange="document.getElementById('bcIdsGroup').style.display = this.value === 'SEGMENT' ? 'block' : 'none'">
+                <option value="SHEET">All Users (from Google Sheet CSV)</option>
+                <option value="SEGMENT">Specific User IDs</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="bcIdsGroup" style="display:none;">
+              <label class="form-label">Target Telegram IDs (comma or newline separated)</label>
+              <textarea class="form-input" id="bcUserIds" rows="3" placeholder="123456789, 987654321"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Message (Supports **bold**, _italic_, {username})</label>
+              <textarea class="form-input" id="bcText" rows="5" placeholder="Hello {username}! New update on Binance Ethiopia..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Photo URL (Optional)</label>
+              <input type="text" class="form-input" id="bcPhoto" placeholder="https://..." />
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div class="form-group"><label class="form-label">Button Text (Optional)</label><input type="text" class="form-input" id="bcBtnText" placeholder="Open Mini App" /></div>
+              <div class="form-group"><label class="form-label">Button URL (Optional)</label><input type="text" class="form-input" id="bcBtnUrl" placeholder="https://t.me/..." /></div>
+            </div>
+
+            <button class="btn btn-gold btn-block" id="bcStartBtn" onclick="startBroadcast()">🚀 Send Broadcast Now</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span>Live Broadcast Engine Status</span><span class="badge badge-blue" id="bcStateBadge">IDLE</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">
+              <span>Sent: <strong id="bcSent" style="color:var(--green);">0</strong></span>
+              <span>Failed: <strong id="bcFailed" style="color:var(--red);">0</strong></span>
+              <span>Total: <strong id="bcTotal">0</strong></span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="bcProgressFill"></div></div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px;">
+              <button class="btn btn-ghost btn-sm" onclick="controlBroadcast('pause')">⏸ Pause</button>
+              <button class="btn btn-green btn-sm" onclick="controlBroadcast('resume')">▶ Resume</button>
+              <button class="btn btn-red btn-sm" onclick="controlBroadcast('stop')">⏹ Stop</button>
+            </div>
+
+            <label class="form-label">Recent Engine Logs</label>
+            <div id="bcLogsBox" style="background:var(--card-alt); border:1px solid var(--border); border-radius:10px; padding:10px; font-family:monospace; font-size:11.5px; min-height:140px; white-space:pre-wrap; color:var(--muted);">Waiting for broadcast job...</div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ═══════════════ ADJUST USER BALANCE MODAL ═══════════════ -->
+  <div class="modal-overlay" id="adjustBalModal">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:800; margin-bottom:10px;">Adjust User Balance</h3>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Target User: <strong id="adjTargetLabel">--</strong></div>
+      <input type="hidden" id="adjTargetId" />
+      <div class="form-group">
+        <label class="form-label">Action</label>
+        <select class="form-input" id="adjAction">
+          <option value="ADD">Add (+ Credit USD)</option>
+          <option value="DEDUCT">Deduct (- Debit USD)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount (USD)</label>
+        <input type="number" class="form-input" id="adjAmount" step="0.01" placeholder="10.00" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason / Note</label>
+        <input type="text" class="form-input" id="adjReason" placeholder="Manual adjustment" />
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <button class="btn btn-ghost" onclick="closeModal('adjustBalModal')">Cancel</button>
+        <button class="btn btn-gold" onclick="submitAdjustBalance()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PAYOUT REF MODAL ═══════════════ -->
+  <div class="modal-overlay" id="payoutModal">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:800; margin-bottom:10px;">Mark Withdrawal Paid</h3>
+      <input type="hidden" id="payoutWithdrawId" />
+      <div class="form-group">
+        <label class="form-label">Bank / TxHash Payout Reference (Recorded in Ledger)</label>
+        <input type="text" class="form-input" id="payoutRefInput" placeholder="e.g. FT26062... or 0x..." />
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <button class="btn btn-ghost" onclick="closeModal('payoutModal')">Cancel</button>
+        <button class="btn btn-green" onclick="confirmApproveWithdrawal()">Mark Paid</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ═══════════════ CONFIGURATION & AUTH ═══════════════
+    const DEFAULT_SERVER = window.location.origin.includes('aletcloud.com')
+      ? window.location.origin
+      : 'https://swap-broadcast-server.app.aletcloud.com';
+
+    let API_BASE = localStorage.getItem('adm_server_url') || DEFAULT_SERVER;
+    let ADMIN_KEY = localStorage.getItem('adm_secret_key') || '';
+
+    document.getElementById('loginServerUrl').value = API_BASE;
+    document.getElementById('loginAdminKey').value = ADMIN_KEY;
+
+    let ledgerData = [];
+    let bcPollTimer = null;
+
+    // Safe HTML escaping to prevent XSS
+    function esc(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function toggleTheme() {
+      const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', cur);
+      localStorage.setItem('adm_theme', cur);
+    }
+    if (localStorage.getItem('adm_theme')) {
+      document.documentElement.setAttribute('data-theme', localStorage.getItem('adm_theme'));
+    }
+
+    async function apiFetch(endpoint, options = {}) {
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Admin-Key': ADMIN_KEY,
+        ...(options.headers || {})
+      };
+      const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
+    }
+
+    async function attemptLogin() {
+      API_BASE = document.getElementById('loginServerUrl').value.trim().replace(/\/+$/, '');
+      ADMIN_KEY = document.getElementById('loginAdminKey').value.trim();
+      if (!API_BASE || !ADMIN_KEY) return showToast('Enter Server URL and Admin Key', 'error');
+
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.innerText = 'Verifying...';
+      try {
+        await apiFetch('/api/admin/analytics');
+        localStorage.setItem('adm_server_url', API_BASE);
+        localStorage.setItem('adm_secret_key', ADMIN_KEY);
+        document.getElementById('loginView').style.display = 'none';
+        document.getElementById('dashView').style.display = 'flex';
+        refreshAllData();
+        pollBroadcastStatus();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Unlock Dashboard';
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('adm_secret_key');
+      location.reload();
+    }
+
+    function switchPanel(name, tabEl) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(`panel-${name}`).classList.add('active');
+      tabEl.classList.add('active');
+    }
+
+    async function refreshAllData() {
+      try {
+        await Promise.all([loadAnalytics(), loadPending(), loadLedger(), loadUsers()]);
+        showToast('Data synced', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ═══════════════ 1. ANALYTICS & RATE ═══════════════
+    async function loadAnalytics() {
+      const d = await apiFetch('/api/admin/analytics');
+
+      // Owner ETB
+      document.getElementById('kpiEtbNet').innerText = `${Number(d.etb_owner_pool.net_held_etb).toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB`;
+      document.getElementById('kpiEtbIn').innerText = `${Number(d.etb_owner_pool.total_in_etb).toLocaleString()} ETB`;
+      document.getElementById('kpiEtbOut').innerText = `${Number(d.etb_owner_pool.total_out_etb).toLocaleString()} ETB`;
+
+      // Nbiyu USD
+      document.getElementById('kpiNbiyuNet').innerText = `$${Number(d.nbiyu_dollar_pool.net_held_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`;
+      document.getElementById('kpiNbiyuIn').innerText = `$${Number(d.nbiyu_dollar_pool.total_in_usd).toFixed(2)}`;
+      document.getElementById('kpiNbiyuOut').innerText = `$${Number(d.nbiyu_dollar_pool.total_out_usd).toFixed(2)}`;
+
+      // Users
+      document.getElementById('kpiUserVault').innerText = `$${Number(d.users.total_user_vault_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`;
+      document.getElementById('kpiTotalUsers').innerText = d.users.total_users;
+      document.getElementById('kpiVerifiedUsers').innerText = d.users.verified_users;
+      document.getElementById('kpiBannedUsers').innerText = d.users.banned_users;
+
+      document.getElementById('adminFxInput').value = d.fx_rate;
+
+      // Channel Breakdown
+      const tbody = document.getElementById('channelBreakdownBody');
+      const chans = d.nbiyu_dollar_pool.by_channel || [];
+      if (chans.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty-box">No dollar ledger entries yet.</td></tr>`;
+      } else {
+        tbody.innerHTML = chans.map(c => {
+          const inU = parseFloat(c.in_usd);
+          const outU = parseFloat(c.out_usd);
+          const netU = inU - outU;
+          return `
+            <tr>
+              <td><strong>${esc(c.channel)}</strong></td>
+              <td style="color:var(--green); font-weight:700;">$${inU.toFixed(2)}</td>
+              <td style="color:var(--red); font-weight:700;">$${outU.toFixed(2)}</td>
+              <td><strong>$${netU.toFixed(2)}</strong></td>
+              <td>${c.tx_count}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // Wallets Config Summary
+      const w = d.wallets_config;
+      let wHtml = `<div>CBE: <span class="mono" onclick="copyVal('${esc(w.etb.cbe.number)}')">${esc(w.etb.cbe.number)}</span> | Telebirr: <span class="mono" onclick="copyVal('${esc(w.etb.telebirr.number)}')">${esc(w.etb.telebirr.number)}</span></div>`;
+      for (const [key, obj] of Object.entries(w.nbiyu)) {
+        if (obj.value) {
+          wHtml += `<div>${esc(obj.label)}: <span class="mono" onclick="copyVal('${esc(obj.value)}')">${esc(obj.value)}</span></div>`;
+        }
+      }
+      document.getElementById('configuredWalletsSummary').innerHTML = wHtml;
+    }
+
+    async function updateFxRate() {
+      const rate = parseFloat(document.getElementById('adminFxInput').value);
+      if (!rate || rate <= 0) return showToast('Invalid rate', 'error');
+      try {
+        const d = await apiFetch('/api/admin/set-rate', { method: 'POST', body: JSON.stringify({ rate }) });
+        showToast(d.message, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ═══════════════ 2. PENDING QUEUES ═══════════════
+    async function loadPending() {
+      const d = await apiFetch('/api/admin/pending');
+      const deps = d.pending_deposits || [];
+      const withs = d.pending_withdrawals || [];
+      const kycs = d.pending_kycs || [];
+      const p2ps = d.active_p2p_trades || [];
+
+      document.getElementById('cntDep').innerText = deps.length;
+      document.getElementById('cntWith').innerText = withs.length;
+      document.getElementById('cntKyc').innerText = kycs.length;
+      document.getElementById('cntP2p').innerText = p2ps.length;
+      document.getElementById('pendingBadge').innerText = deps.length + withs.length + kycs.length + p2ps.length;
+
+      // Deposits
+      const depEl = document.getElementById('pendingDepositsList');
+      depEl.innerHTML = deps.length === 0 ? `<div class="empty-box">No pending deposits.</div>` : deps.map(x => `
+        <div class="queue-item">
+          <div class="queue-meta">
+            <div><span class="badge ${x.pool_target === 'USD_NBIYU' ? 'badge-purple' : 'badge-green'}">${esc(x.pool_target)}</span> <strong>#${x.id}</strong> · User <code>${esc(x.telegram_id)}</code></div>
+            <div><strong>$${Number(x.amount_usd).toFixed(2)} USD</strong> (${Number(x.amount)} ${esc(x.currency)}) via <strong>${esc(x.payment_method)}</strong></div>
+            <div>Ref: <span class="mono" onclick="copyVal('${esc(x.transaction_ref)}')">${esc(x.transaction_ref)}</span> · <small style="color:var(--muted);">${esc(x.eat_time || '')}</small></div>
+          </div>
+          <div class="queue-actions">
+            <button class="btn btn-green btn-sm" onclick="approveDeposit(${x.id}, this)">✔ Approve</button>
+            <button class="btn btn-red btn-sm" onclick="rejectDeposit(${x.id}, this)">✕ Fake</button>
+          </div>
+        </div>
+      `).join('');
+
+      // Withdrawals
+      const withEl = document.getElementById('pendingWithdrawalsList');
+      withEl.innerHTML = withs.length === 0 ? `<div class="empty-box">No pending withdrawals.</div>` : withs.map(x => `
+        <div class="queue-item">
+          <div class="queue-meta">
+            <div><span class="badge ${x.pool_source === 'USD_NBIYU' ? 'badge-purple' : 'badge-gold'}">${esc(x.pool_source)}</span> <strong>#${x.id}</strong> · User <code>${esc(x.telegram_id)}</code></div>
+            <div><strong>$${Number(x.amount_usd).toFixed(2)} USD</strong> (${Number(x.amount_etb).toLocaleString()} ETB)</div>
+            <div>To <strong>${esc(x.payment_method)}</strong>: <span class="mono" onclick="copyVal('${esc(x.account_number)}')">${esc(x.account_number)}</span></div>
+          </div>
+          <div class="queue-actions">
+            <button class="btn btn-green btn-sm" onclick="openPayoutModal(${x.id})">💸 Mark Paid</button>
+            <button class="btn btn-red btn-sm" onclick="rejectWithdrawal(${x.id}, this)">↩ Reject &amp; Refund</button>
+          </div>
+        </div>
+      `).join('');
+
+      // KYCs
+      const kycEl = document.getElementById('pendingKycsList');
+      kycEl.innerHTML = kycs.length === 0 ? `<div class="empty-box">No pending KYC requests.</div>` : kycs.map(x => `
+        <div class="queue-item">
+          <div class="queue-meta">
+            <div><strong>${esc(x.kyc_full_name || x.first_name)}</strong> (${esc(x.username ? '@' + x.username : x.telegram_id)})</div>
+            <div>Phone: <strong>${esc(x.phone_number)}</strong> · National ID: <span class="mono">${esc(x.national_id)}</span></div>
+          </div>
+          <div class="queue-actions">
+            <button class="btn btn-green btn-sm" onclick="reviewKyc('${esc(x.telegram_id)}', 'Approved', this)">✔ Approve</button>
+            <button class="btn btn-red btn-sm" onclick="reviewKyc('${esc(x.telegram_id)}', 'Rejected', this)">✕ Reject</button>
+          </div>
+        </div>
+      `).join('');
+
+      // P2P Trades
+      const p2pEl = document.getElementById('activeP2pTradesList');
+      p2pEl.innerHTML = p2ps.length === 0 ? `<div class="empty-box">No active P2P escrow trades.</div>` : p2ps.map(x => `
+        <div class="queue-item">
+          <div class="queue-meta">
+            <div><strong>${esc(x.trade_code)}</strong> <span class="badge badge-gold">${esc(x.status)}</span></div>
+            <div>Buyer: <code>${esc(x.buyer_id)}</code> · Seller: <code>${esc(x.seller_id)}</code></div>
+            <div>Net: <strong>$${Number(x.net_usd || x.amount_usd).toFixed(2)} USDT</strong> (${Number(x.amount_etb).toLocaleString()} ETB) · Ref: <span class="mono">${esc(x.payment_ref || 'None')}</span></div>
+          </div>
+          <div class="queue-actions">
+            <button class="btn btn-purple btn-sm" onclick="releaseP2PTrade('${esc(x.trade_code)}', this)">🔓 Release Crypto</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function approveDeposit(id, btn) {
+      btn.disabled = true;
+      try {
+        const d = await apiFetch('/api/admin/approve-deposit', { method: 'POST', body: JSON.stringify({ deposit_id: id }) });
+        showToast(d.message, 'success');
+        refreshAllData();
+      } catch (err) {
+        btn.disabled = false;
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function rejectDeposit(id, btn) {
+      btn.disabled = true;
+      try {
+        const d = await apiFetch('/api/admin/reject-deposit', { method: 'POST', body: JSON.stringify({ deposit_id: id, reason: 'Fake or unreceived' }) });
+        showToast(d.message, 'success');
+        refreshAllData();
+      } catch (err) {
+        btn.disabled = false;
+        showToast(err.message, 'error');
+      }
+    }
+
+    function openPayoutModal(id) {
+      document.getElementById('payoutWithdrawId').value = id;
+      document.getElementById('payoutRefInput').value = '';
+      document.getElementById('payoutModal').classList.add('open');
+    }
+
+    async function confirmApproveWithdrawal() {
+      const id = document.getElementById('payoutWithdrawId').value;
+      const ref = document.getElementById('payoutRefInput').value.trim();
+      try {
+        const d = await apiFetch('/api/admin/approve-withdrawal', { method: 'POST', body: JSON.stringify({ withdrawal_id: id, payout_ref: ref }) });
+        closeModal('payoutModal');
+        showToast(d.message, 'success');
+        refreshAllData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function rejectWithdrawal(id, btn) {
+      btn.disabled = true;
+      try {
+        const d = await apiFetch('/api/admin/reject-withdrawal', { method: 'POST', body: JSON.stringify({ withdrawal_id: id }) });
+        showToast(d.message, 'success');
+        refreshAllData();
+      } catch (err) {
+        btn.disabled = false;
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function reviewKyc(tgId, decision, btn) {
+      btn.disabled = true;
+      try {
+        const d = await apiFetch('/api/admin/kyc/review', { method: 'POST', body: JSON.stringify({ telegram_id: tgId, decision }) });
+        showToast(d.message, 'success');
+        refreshAllData();
+      } catch (err) {
+        btn.disabled = false;
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function releaseP2PTrade(code, btn) {
+      btn.disabled = true;
+      try {
+        const d = await apiFetch('/api/p2p/trades/release', { method: 'POST', body: JSON.stringify({ trade_code: code }) });
+        showToast(d.message, 'success');
+        refreshAllData();
+      } catch (err) {
+        btn.disabled = false;
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ═══════════════ 3. NBIYU LEDGER & CSV EXPORT ═══════════════
+    async function loadLedger() {
+      ledgerData = await apiFetch('/api/admin/nbiyu-ledger');
+      renderLedgerTable();
+    }
+
+    function renderLedgerTable() {
+      const dir = document.getElementById('ledgerDirFilter').value;
+      const q = document.getElementById('ledgerSearch').value.trim().toLowerCase();
+      const filtered = ledgerData.filter(r => {
+        if (dir !== 'ALL' && r.direction !== dir) return false;
+        if (q && !`${r.tx_code} ${r.user_name} ${r.channel} ${r.tx_ref} ${r.telegram_id}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      const tbody = document.getElementById('ledgerTableBody');
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="empty-box">No matching ledger records found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(r => `
+        <tr>
+          <td><span class="mono">${esc(r.tx_code)}</span></td>
+          <td><span class="badge ${r.direction === 'IN' ? 'badge-green' : 'badge-red'}">${esc(r.direction)}</span></td>
+          <td>${esc(r.user_name)}<br><small style="color:var(--muted);">${esc(r.telegram_id)}</small></td>
+          <td><strong>${esc(r.channel)}</strong><br><small class="mono">${esc(r.destination_account)}</small></td>
+          <td style="font-weight:900; color:${r.direction === 'IN' ? 'var(--green)' : 'var(--red)'};">${r.direction === 'IN' ? '+' : '-'}$${Number(r.amount_usd).toFixed(2)}</td>
+          <td><span class="mono" onclick="copyVal('${esc(r.tx_ref)}')">${esc(r.tx_ref)}</span></td>
+          <td><span class="badge badge-blue">${esc(r.verified_by)}</span></td>
+          <td style="font-size:11px; white-space:nowrap;">${esc(r.eat_timestamp)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportLedgerCSV() {
+      if (ledgerData.length === 0) return showToast('No ledger data to export', 'error');
+      const headers = ['TX Code', 'Direction', 'Telegram ID', 'User', 'Channel', 'Wallet/Account', 'Amount USD', 'TxRef', 'Verified By', 'Time (EAT)'];
+      const rows = ledgerData.map(r => [
+        r.tx_code, r.direction, r.telegram_id, r.user_name, r.channel,
+        r.destination_account, r.amount_usd, r.tx_ref, r.verified_by, r.eat_timestamp
+      ].map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(','));
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nbiyu_dollar_ledger_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ═══════════════ 4. USERS MANAGEMENT ═══════════════
+    async function loadUsers() {
+      const q = document.getElementById('userSearchInput').value.trim();
+      const users = await apiFetch(`/api/admin/users${q ? '?q=' + encodeURIComponent(q) : ''}`);
+      const tbody = document.getElementById('usersTableBody');
+
+      if (users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-box">No users found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td><span class="mono" onclick="copyVal('${esc(u.telegram_id)}')">${esc(u.telegram_id)}</span></td>
+          <td><strong>${esc(u.first_name)} ${esc(u.last_name || '')}</strong><br><small style="color:var(--muted);">${esc(u.username ? '@' + u.username : '')}</small></td>
+          <td><strong style="color:var(--gold);">$${Number(u.balance_usd).toFixed(2)}</strong><br><small style="color:var(--muted);">Locked: $${Number(u.locked_usd || 0).toFixed(2)}</small></td>
+          <td><span class="badge ${u.kyc_status === 'Approved' ? 'badge-green' : u.kyc_status === 'Pending' ? 'badge-gold' : 'badge-red'}">${esc(u.kyc_status)}</span></td>
+          <td><strong style="color:${u.fake_attempts >= 2 ? 'var(--red)' : 'var(--text)'};">${u.fake_attempts || 0}/3</strong></td>
+          <td><span class="badge ${u.is_banned === 1 ? 'badge-red' : 'badge-green'}">${u.is_banned === 1 ? 'BANNED' : 'ACTIVE'}</span></td>
+          <td>
+            <div style="display:flex; gap:5px;">
+              <button class="btn btn-gold btn-sm" onclick="openAdjustModal('${esc(u.telegram_id)}', '${esc(u.first_name)}')">± Bal</button>
+              <button class="btn ${u.is_banned === 1 ? 'btn-green' : 'btn-red'} btn-sm" onclick="toggleBan('${esc(u.telegram_id)}', ${u.is_banned === 1 ? 'false' : 'true'})">
+                ${u.is_banned === 1 ? 'Unban' : 'Ban'}
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openAdjustModal(tgId, name) {
+      document.getElementById('adjTargetId').value = tgId;
+      document.getElementById('adjTargetLabel').innerText = `${name} (${tgId})`;
+      document.getElementById('adjAmount').value = '';
+      document.getElementById('adjustBalModal').classList.add('open');
+    }
+
+    async function submitAdjustBalance() {
+      const telegram_id = document.getElementById('adjTargetId').value;
+      const action = document.getElementById('adjAction').value;
+      const amount_usd = parseFloat(document.getElementById('adjAmount').value);
+      const reason = document.getElementById('adjReason').value.trim();
+      if (!amount_usd || amount_usd <= 0) return showToast('Enter valid USD amount', 'error');
+
+      try {
+        const d = await apiFetch('/api/admin/adjust-balance', {
+          method: 'POST',
+          body: JSON.stringify({ telegram_id, amount_usd, action, reason })
+        });
+        closeModal('adjustBalModal');
+        showToast(`New balance: $${d.new_balance_usd}`, 'success');
+        loadUsers();
+        loadAnalytics();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function toggleBan(tgId, banState) {
+      try {
+        const d = await apiFetch('/api/admin/ban-user', { method: 'POST', body: JSON.stringify({ telegram_id: tgId, banned: banState }) });
+        showToast(d.message, 'success');
+        loadUsers();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ═══════════════ 5. BROADCAST CONTROLS ═══════════════
+    async function startBroadcast() {
+      const text = document.getElementById('bcText').value.trim();
+      const photo = document.getElementById('bcPhoto').value.trim();
+      const btnText = document.getElementById('bcBtnText').value.trim();
+      const btnUrl = document.getElementById('bcBtnUrl').value.trim();
+      const aud = document.getElementById('bcAudience').value;
+
+      if (!text) return showToast('Enter a broadcast message', 'error');
+
+      const payload = { text, photo, btnText, btnUrl };
+      if (aud === 'SEGMENT') {
+        const rawIds = document.getElementById('bcUserIds').value;
+        const ids = rawIds.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+        if (ids.length === 0) return showToast('Enter at least one User ID', 'error');
+        payload.user_ids = ids;
+      }
+
+      try {
+        const d = await apiFetch('/broadcast/start', { method: 'POST', body: JSON.stringify(payload) });
+        showToast(`Broadcast started for ${d.total} users!`, 'success');
+        pollBroadcastStatus();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function controlBroadcast(action) {
+      try {
+        const d = await apiFetch(`/broadcast/${action}`, { method: 'POST' });
+        showToast(d.message, 'success');
+        pollBroadcastStatus();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function pollBroadcastStatus() {
+      if (bcPollTimer) clearTimeout(bcPollTimer);
+      try {
+        const s = await apiFetch('/broadcast/status');
+        document.getElementById('bcSent').innerText = s.sent;
+        document.getElementById('bcFailed').innerText = s.failed;
+        document.getElementById('bcTotal').innerText = s.total;
+        document.getElementById('bcProgressFill').style.width = `${s.pct}%`;
+        document.getElementById('bcStateBadge').innerText = s.running ? (s.paused ? 'PAUSED' : `RUNNING ${s.pct}%`) : 'IDLE';
+        if (s.lastLog && s.lastLog.length > 0) {
+          document.getElementById('bcLogsBox').innerText = s.lastLog.join('\n');
+        }
+        if (s.running) {
+          bcPollTimer = setTimeout(pollBroadcastStatus, 2500);
+        }
+      } catch (_) {}
+    }
+
+    // ═══════════════ UTILITIES ═══════════════
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function copyVal(v) { navigator.clipboard.writeText(v); showToast(`Copied: ${v}`, 'success'); }
+    function showToast(msg, type = '') {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.className = `toast ${type} show`;
+      setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    // Auto-login if key already stored
+    if (ADMIN_KEY) {
+      attemptLogin();
+    }
+  </script>
+</body>
+</html>
