@@ -1,3 +1,4 @@
+
 try { require('dotenv').config(); } catch (_) {}
 const express = require('express');
 const cors = require('cors');
@@ -27,7 +28,7 @@ const VERIFY_SECRET       = process.env.VERIFY_SECRET || process.env.VERIFY_TOKE
 const TG_APP_API = `https://api.telegram.org/bot${BINANCE_BOT_TOKEN}`;
 const TG_BC_API  = `https://api.telegram.org/bot${BROADCAST_BOT_TOKEN}`;
 
-// ═════════════════════ 2. IN-MEMORY RAM CACHES (LOW DB SYNC) ═════════════════════
+// ═════════════════════ 2. IN-MEMORY RAM CACHES (LOW DB LOAD) ═════════════════════
 let configCache = { data: null, expiresAt: 0 };
 let p2pAdsCache = { data: null, expiresAt: 0 };
 
@@ -65,7 +66,14 @@ function escHtml(str) {
     .replace(/>/g, '&gt;');
 }
 
-// ═════════════════════ 4. CORS & MIDDLEWARE ═════════════════════
+function findActiveAccount(accounts, methodKey) {
+  const m = String(methodKey || '').trim().toLowerCase();
+  return accounts.find(a =>
+    a.key_slug.toLowerCase() === m || a.label.toLowerCase() === m
+  );
+}
+
+// ═════════════════════ 4. CORS & STATIC FILES ═════════════════════
 app.use(cors());
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -166,11 +174,82 @@ async function initDB() {
         referred_by VARCHAR(64) DEFAULT NULL, fake_attempts INT DEFAULT 0, is_banned INT DEFAULT 0,
         last_spin_at TIMESTAMPTZ DEFAULT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
       );
+      CREATE TABLE IF NOT EXISTS referrals (
+        id SERIAL PRIMARY KEY, referrer_id VARCHAR(64) NOT NULL,
+        referred_id VARCHAR(64) UNIQUE NOT NULL, status TEXT DEFAULT 'ACTIVE', created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS deposits (
+        id SERIAL PRIMARY KEY, telegram_id VARCHAR(64) NOT NULL, pool_target VARCHAR(20) DEFAULT 'ETB_OWNER',
+        currency VARCHAR(10) NOT NULL, amount NUMERIC(14, 2) NOT NULL, amount_usd NUMERIC(14, 2) NOT NULL,
+        fx_rate_used NUMERIC(10, 2) DEFAULT 194.00, payment_method VARCHAR(50) NOT NULL,
+        destination_account TEXT DEFAULT '', transaction_ref VARCHAR(160) UNIQUE NOT NULL,
+        status VARCHAR(20) DEFAULT 'PENDING', reject_reason TEXT DEFAULT NULL, verified_by VARCHAR(64) DEFAULT NULL,
+        eat_time TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS nbiyu_ledger (
+        id SERIAL PRIMARY KEY, tx_code VARCHAR(36) UNIQUE NOT NULL, direction VARCHAR(10) NOT NULL,
+        telegram_id VARCHAR(64) NOT NULL, user_name TEXT, channel VARCHAR(40) NOT NULL,
+        destination_account TEXT NOT NULL, amount_usd NUMERIC(14, 2) NOT NULL,
+        tx_ref TEXT NOT NULL, verified_by VARCHAR(64) NOT NULL, eat_timestamp TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS withdrawals (
+        id SERIAL PRIMARY KEY, telegram_id VARCHAR(64) NOT NULL, pool_source VARCHAR(20) DEFAULT 'ETB_OWNER',
+        amount_usd NUMERIC(14, 2) NOT NULL, amount_etb NUMERIC(14, 2) NOT NULL,
+        payment_method VARCHAR(50) NOT NULL, account_number TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'PENDING', reject_reason TEXT DEFAULT NULL, payout_ref TEXT DEFAULT NULL,
+        eat_time TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS store_orders (
+        id SERIAL PRIMARY KEY, order_code VARCHAR(32) UNIQUE NOT NULL, telegram_id VARCHAR(64) NOT NULL,
+        product_id VARCHAR(32) NOT NULL, product_name TEXT NOT NULL, price_usd NUMERIC(14, 2) NOT NULL,
+        price_etb NUMERIC(14, 2) NOT NULL, currency VARCHAR(10) NOT NULL DEFAULT 'ETB',
+        payment_method VARCHAR(50) NOT NULL, pool_target VARCHAR(20) DEFAULT 'ETB_OWNER',
+        transaction_ref VARCHAR(160) UNIQUE NOT NULL, service_details TEXT DEFAULT NULL,
+        delivery_data TEXT DEFAULT NULL, status VARCHAR(20) DEFAULT 'PENDING', reject_reason TEXT DEFAULT NULL,
+        verified_by VARCHAR(64) DEFAULT NULL, eat_time TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS virtual_cards (
+        id SERIAL PRIMARY KEY, order_id INT DEFAULT NULL, telegram_id VARCHAR(64) NOT NULL,
+        card_type VARCHAR(20) DEFAULT 'VISA', card_number VARCHAR(32) NOT NULL, expiry VARCHAR(10) NOT NULL,
+        cvv VARCHAR(5) NOT NULL, balance_usd NUMERIC(14, 2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'ACTIVE',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS phone_orders (
+        id SERIAL PRIMARY KEY, order_id INT DEFAULT NULL, telegram_id VARCHAR(64) NOT NULL,
+        country VARCHAR(10) NOT NULL, service VARCHAR(64) NOT NULL, phone_number VARCHAR(32) NOT NULL,
+        otp_code VARCHAR(16) NOT NULL, status VARCHAR(20) DEFAULT 'ACTIVE', created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS p2p_ads (
+        id SERIAL PRIMARY KEY, creator_id VARCHAR(64) NOT NULL, creator_name TEXT NOT NULL,
+        trade_type VARCHAR(10) NOT NULL, crypto_symbol VARCHAR(10) DEFAULT 'USDT',
+        price_etb NUMERIC(14, 2) NOT NULL, amount_usd NUMERIC(14, 2) NOT NULL,
+        remaining_usd NUMERIC(14, 2) NOT NULL DEFAULT 0.00, min_limit_etb NUMERIC(14, 2) DEFAULT 250.00,
+        max_limit_etb NUMERIC(14, 2) DEFAULT 100000.00, payment_methods TEXT NOT NULL,
+        seller_payout_method VARCHAR(50) DEFAULT NULL, seller_payout_account TEXT DEFAULT NULL,
+        status VARCHAR(20) DEFAULT 'ACTIVE', created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS p2p_trades (
+        id SERIAL PRIMARY KEY, trade_code VARCHAR(32) UNIQUE NOT NULL, ad_id INT,
+        buyer_id VARCHAR(64) NOT NULL, seller_id VARCHAR(64) NOT NULL, amount_usd NUMERIC(14, 2) NOT NULL,
+        fee_usd NUMERIC(14, 2) DEFAULT 0.00, net_usd NUMERIC(14, 2) DEFAULT 0.00,
+        amount_etb NUMERIC(14, 2) NOT NULL, seller_payout_etb NUMERIC(14, 2) DEFAULT 0.00,
+        price_rate NUMERIC(14, 2) NOT NULL, payment_method VARCHAR(50) NOT NULL,
+        receiving_id TEXT DEFAULT NULL, payment_ref TEXT DEFAULT NULL, seller_payout_account TEXT DEFAULT NULL,
+        seller_payout_status VARCHAR(20) DEFAULT 'NONE', status VARCHAR(20) DEFAULT 'PENDING',
+        reject_reason TEXT DEFAULT NULL, expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '15 minutes'),
+        eat_time TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS transactions (
+        id SERIAL PRIMARY KEY, telegram_id VARCHAR(64) NOT NULL, type VARCHAR(32) NOT NULL,
+        amount_usd NUMERIC(14, 2) NOT NULL, details TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+      );
       CREATE TABLE IF NOT EXISTS telegram_pending_replies (
         message_id BIGINT PRIMARY KEY, target_type VARCHAR(24) NOT NULL,
         target_id TEXT NOT NULL, admin_tg_id VARCHAR(64) NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+
     await getSystemConfig();
     console.log('✅ Neon PostgreSQL connected & config cached.');
   } catch (err) {
@@ -201,7 +280,7 @@ async function notifyAdminGroup(text, replyMarkup = null) {
   return tgCall('sendMessage', payload);
 }
 
-// Forward compressed base64 image directly to Telegram Group (NEVER saved in Postgres!)
+// Sends compressed base64 photo straight to Telegram Group (zero bytes stored in Postgres!)
 async function sendBase64PhotoToGroup(dataUrl, caption, replyMarkup = null) {
   if (!BINANCE_BOT_TOKEN || !ADMIN_GROUP_ID || !dataUrl || !dataUrl.startsWith('data:image/')) {
     return notifyAdminGroup(caption, replyMarkup);
@@ -229,7 +308,6 @@ async function sendBase64PhotoToGroup(dataUrl, caption, replyMarkup = null) {
   }
 }
 
-// Notify User in their preferred language (EN + AM)
 async function notifyUserDM(telegramId, msgEn, msgAm) {
   if (!BINANCE_BOT_TOKEN || !telegramId || String(telegramId).startsWith('guest_')) return;
   let lang = 'en';
@@ -244,17 +322,15 @@ async function notifyUserDM(telegramId, msgEn, msgAm) {
 }
 
 async function checkChannelMembership(telegramId) {
-  if (!BINANCE_BOT_TOKEN) return { ok: true, joined: true };
+  if (!BINANCE_BOT_TOKEN || String(telegramId).startsWith('guest_')) return { ok: true, joined: true };
   try {
     const d = await tgCall('getChatMember', { chat_id: OFFICIAL_CHANNEL, user_id: Number(telegramId) || telegramId });
     if (!d || !d.ok) {
-      // Bot might not be admin in channel yet; log warning
-      console.warn('getChatMember check warning:', d?.description);
-      return { ok: false, joined: true }; // Fail-open only if bot lacks admin perms so users aren't blocked by config
+      console.warn('getChatMember warning:', d?.description);
+      return { ok: false, joined: true };
     }
     const st = d.result?.status;
-    const joined = ['creator', 'administrator', 'member', 'restricted'].includes(st);
-    return { ok: true, joined };
+    return { ok: true, joined: ['creator', 'administrator', 'member', 'restricted'].includes(st) };
   } catch {
     return { ok: false, joined: true };
   }
@@ -298,7 +374,7 @@ async function verifyETBWithServer(ref, expectedAmount, smsText = '') {
       return { outcome: 'VERIFIED', amount: parseFloat(data.amount || expectedAmount), ref: data.ref || data.transaction_id || ref };
     }
     if (st === 'Pending' || st === 'Resolving') {
-      return { outcome: 'RETRY', status: st, message: `Bank/Telebirr confirmation is ${st}. Please wait 1 minute and try again.` };
+      return { outcome: 'RETRY', status: st, message: `Bank/Telebirr verification is ${st}. Please wait 1 minute and try again.` };
     }
     if (st === 'AlreadyUsed' || st === 'InvalidAmount' || st === 'Invalid_Transaction_Type') {
       return { outcome: 'REJECT', status: st, reason: `Payment rejected (${st}).` };
@@ -569,7 +645,7 @@ async function approveWithdrawalById(withdrawalId, payoutRef = '', actor = 'ADMI
   }
 }
 
-async function rejectWithdrawalById(withdrawalId, reason = 'Invalid account details', actor = 'ADMIN') {
+async function rejectWithdrawalById(withdrawalId, reason = 'Invalid account details') {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -619,7 +695,7 @@ async function reviewKycByUserId(telegramId, decision, reason = null) {
   return { ok: true };
 }
 
-async function releaseP2PTradeByCode(tradeCode, actor = 'ADMIN') {
+async function releaseP2PTradeByCode(tradeCode) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -633,11 +709,11 @@ async function releaseP2PTradeByCode(tradeCode, actor = 'ADMIN') {
 
     // 1. Credit Buyer's Vault
     await client.query('UPDATE users SET balance_usd = balance_usd + $1 WHERE telegram_id = $2', [releaseAmt, trade.buyer_id]);
-    // 2. Release Seller's Locked Escrow (if non-system seller)
+    // 2. Release Seller's Locked Escrow (if real user seller)
     if (!String(trade.seller_id).startsWith('SYSTEM_')) {
       await client.query('UPDATE users SET locked_usd = GREATEST(0, locked_usd - $1) WHERE telegram_id = $2', [trade.amount_usd, trade.seller_id]);
     }
-    // 3. Mark Trade Released & Queue Seller ETB Payout
+    // 3. Mark Released & Queue Seller ETB Payout
     const payoutStatus = trade.seller_payout_account ? 'PENDING_PAYOUT' : 'NONE';
     await client.query(`UPDATE p2p_trades SET status = 'RELEASED', seller_payout_status = $1 WHERE trade_code = $2`, [payoutStatus, tradeCode]);
 
@@ -655,7 +731,7 @@ async function releaseP2PTradeByCode(tradeCode, actor = 'ADMIN') {
     if (!String(trade.seller_id).startsWith('SYSTEM_')) {
       notifyUserDM(
         trade.seller_id,
-        `💰 <b>Your P2P Dollar Sold (${tradeCode})!</b>\nNet payout of ${Number(trade.seller_payout_etb).toLocaleString()} ETB (after 3% fee) is queued for your ${escHtml(trade.seller_payout_account)}.`,
+        `💰 <b>Your P2P Dollar Sold (${tradeCode})!</b>\nNet payout of ${Number(trade.seller_payout_etb).toLocaleString()} ETB (after 3% fee) is queued for ${escHtml(trade.seller_payout_account)}.`,
         `💰 <b>የP2P ዶላርዎ ተሽጧል (${tradeCode})!</b>\n3% ኮሚሽን ተቀንሶ ${Number(trade.seller_payout_etb).toLocaleString()} ETB ወደ ${escHtml(trade.seller_payout_account)} ይላክልዎታል።`
       );
     }
@@ -668,14 +744,65 @@ async function releaseP2PTradeByCode(tradeCode, actor = 'ADMIN') {
   }
 }
 
+async function rejectP2PTradeByCode(tradeCode, reason = 'Payment not verified') {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const tRes = await client.query(`SELECT * FROM p2p_trades WHERE trade_code = $1 AND status IN ('PENDING', 'PAID', 'VERIFYING', 'DISPUTED') FOR UPDATE`, [tradeCode]);
+    if (tRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { ok: false, error: 'Trade not found or already closed' };
+    }
+    const trade = tRes.rows[0];
+    await client.query(`UPDATE p2p_trades SET status = 'REJECTED', reject_reason = $1 WHERE trade_code = $2`, [reason, tradeCode]);
+
+    // Restore ad remaining liquidity or refund non-system seller locked USDT
+    const adCheck = await client.query(`SELECT trade_type FROM p2p_ads WHERE id = $1`, [trade.ad_id]);
+    const adType = adCheck.rows[0]?.trade_type;
+    if (adType === 'BUY' && !String(trade.seller_id).startsWith('SYSTEM_')) {
+      await client.query(`UPDATE users SET locked_usd = GREATEST(0, locked_usd - $1), balance_usd = balance_usd + $1 WHERE telegram_id = $2`, [trade.amount_usd, trade.seller_id]);
+    }
+    await client.query(`UPDATE p2p_ads SET remaining_usd = remaining_usd + $1 WHERE id = $2`, [trade.amount_usd, trade.ad_id]);
+
+    await client.query('COMMIT');
+    invalidateP2PCache();
+
+    notifyUserDM(
+      trade.buyer_id,
+      `❌ <b>P2P Trade Rejected (${tradeCode})</b>\nReason: ${escHtml(reason)}`,
+      `❌ <b>የ P2P ትዕዛዝዎ ውድቅ ተደርጓል (${tradeCode})</b>\nምክንያት: ${escHtml(reason)}`
+    );
+    return { ok: true, trade };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return { ok: false, error: err.message };
+  } finally {
+    client.release();
+  }
+}
+
 // ═════════════════════ 9. TELEGRAM GROUP WEBHOOK (INLINE APPROVE / REJECT + REASONS) ═════════════════════
 app.post('/api/telegram/webhook', async (req, res) => {
-  res.sendStatus(200); // Acknowledge Telegram immediately
+  res.sendStatus(200);
   const update = req.body;
   if (!update || !pool) return;
 
   try {
-    // 1. Handle Inline Button Clicks in Admin Group
+    // /start Welcome in Private Chat
+    if (update.message?.text?.startsWith('/start') && update.message.chat?.type === 'private') {
+      const firstName = escHtml(update.message.from?.first_name || 'Friend');
+      await tgCall('sendMessage', {
+        chat_id: update.message.chat.id,
+        text: `👋 Welcome <b>${firstName}</b> to <b>Binance Ethiopia</b>!\n\nHold real USD assets, order Visa/MasterCards, and trade P2P safely.\n\n📢 Official Channel: ${OFFICIAL_CHANNEL}`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [[{ text: '🚀 Open Binance Ethiopia', url: `https://t.me/${BINANCE_BOT_USER}/binance` }]]
+        }
+      });
+      return;
+    }
+
+    // Inline Button Clicks in Admin Group
     if (update.callback_query) {
       const cq = update.callback_query;
       const chatId = String(cq.message?.chat?.id || '');
@@ -686,7 +813,6 @@ app.post('/api/telegram/webhook', async (req, res) => {
       const action = parts[0];
       const targetId = parts[1];
 
-      // Quick Approval Buttons
       if (action === 'dep_app') {
         const r = await approveDepositById(parseInt(targetId), adminTag);
         await tgCall('answerCallbackQuery', { callback_query_id: cq.id, text: r.ok ? 'Approved!' : r.error });
@@ -712,16 +838,14 @@ app.post('/api/telegram/webhook', async (req, res) => {
         await tgCall('answerCallbackQuery', { callback_query_id: cq.id, text: 'KYC Approved!' });
         await tgCall('editMessageText', { chat_id: chatId, message_id: cq.message.message_id, text: `${cq.message.text || ''}\n\n✅ <b>KYC APPROVED by ${escHtml(adminTag)}</b>`, parse_mode: 'HTML' }).catch(() => {});
       } else if (action === 'p2p_rel') {
-        const r = await releaseP2PTradeByCode(targetId, adminTag);
+        const r = await releaseP2PTradeByCode(targetId);
         await tgCall('answerCallbackQuery', { callback_query_id: cq.id, text: r.ok ? 'Crypto Released!' : r.error });
         if (r.ok) {
           await tgCall('editMessageCaption', { chat_id: chatId, message_id: cq.message.message_id, caption: `${cq.message.caption || ''}\n\n🔓 <b>RELEASED by ${escHtml(adminTag)}</b>`, parse_mode: 'HTML' }).catch(() => {});
           await tgCall('editMessageText', { chat_id: chatId, message_id: cq.message.message_id, text: `${cq.message.text || ''}\n\n🔓 <b>RELEASED by ${escHtml(adminTag)}</b>`, parse_mode: 'HTML' }).catch(() => {});
         }
-      }
-      // Show Rejection Reason Picker Menu
-      else if (['dep_rej', 'sto_rej', 'wdr_rej', 'kyc_rej'].includes(action)) {
-        const typeMap = { dep_rej: 'DEPOSIT', sto_rej: 'STORE', wdr_rej: 'WITHDRAW', kyc_rej: 'KYC' };
+      } else if (['dep_rej', 'sto_rej', 'wdr_rej', 'kyc_rej', 'p2p_rej'].includes(action)) {
+        const typeMap = { dep_rej: 'DEPOSIT', sto_rej: 'STORE', wdr_rej: 'WITHDRAW', kyc_rej: 'KYC', p2p_rej: 'P2P' };
         const tType = typeMap[action];
         await tgCall('answerCallbackQuery', { callback_query_id: cq.id });
         await notifyAdminGroup(`Select rejection reason for <b>${tType} #${escHtml(targetId)}</b>:`, {
@@ -732,9 +856,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
             [{ text: '✍️ Write Custom Reason', callback_data: `rej_cust:${tType}:${targetId}` }]
           ]
         });
-      }
-      // Execute Quick-Pick Rejection Reason
-      else if (action === 'rej_pick') {
+      } else if (action === 'rej_pick') {
         const [, tType, tId, reasonCode] = parts;
         const reasons = {
           fake: 'Fake receipt or payment not received.',
@@ -745,9 +867,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
         await executeRejectionByType(tType, tId, reason, adminTag);
         await tgCall('answerCallbackQuery', { callback_query_id: cq.id, text: 'Rejected & User Notified!' });
         await tgCall('editMessageText', { chat_id: chatId, message_id: cq.message.message_id, text: `❌ <b>${tType} #${escHtml(tId)} REJECTED by ${escHtml(adminTag)}</b>\nReason: ${escHtml(reason)}`, parse_mode: 'HTML' });
-      }
-      // Trigger Custom Reply Reason (ForceReply)
-      else if (action === 'rej_cust') {
+      } else if (action === 'rej_cust') {
         const [, tType, tId] = parts;
         await tgCall('answerCallbackQuery', { callback_query_id: cq.id });
         const sent = await tgCall('sendMessage', {
@@ -765,7 +885,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
       }
     }
 
-    // 2. Handle Admin Custom Rejection Reason Text Reply
+    // Handle Admin Custom Rejection Reason Text Reply
     if (update.message?.reply_to_message && String(update.message.chat?.id) === String(ADMIN_GROUP_ID)) {
       const replyId = update.message.reply_to_message.message_id;
       const customReason = (update.message.text || '').trim();
@@ -780,22 +900,22 @@ app.post('/api/telegram/webhook', async (req, res) => {
       }
     }
   } catch (err) {
-    console.error('Webhook processing error:', err.message);
+    console.error('Webhook error:', err.message);
   }
 });
 
 async function executeRejectionByType(tType, tId, reason, actor) {
   if (tType === 'DEPOSIT') return rejectDepositById(parseInt(tId), reason, actor);
   if (tType === 'STORE') return rejectStoreOrderById(parseInt(tId), reason, actor);
-  if (tType === 'WITHDRAW') return rejectWithdrawalById(parseInt(tId), reason, actor);
+  if (tType === 'WITHDRAW') return rejectWithdrawalById(parseInt(tId), reason);
   if (tType === 'KYC') return reviewKycByUserId(tId, 'Rejected', reason);
+  if (tType === 'P2P') return rejectP2PTradeByCode(tId, reason);
 }
 
 // ═════════════════════ 10. MINI APP REST APIS ═════════════════════
 
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
-// 1. Config & Dynamic Accounts from DB (Cached)
 app.get('/api/config', async (req, res) => {
   const cfg = await getSystemConfig();
   res.json({
@@ -812,7 +932,6 @@ app.get('/api/config', async (req, res) => {
   });
 });
 
-// 2. Auth & Combined User Bootstrap (Low-Sync)
 app.post('/api/auth', async (req, res) => {
   const { telegram_id, first_name, last_name, username, ref_by } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
@@ -839,7 +958,6 @@ app.post('/api/auth', async (req, res) => {
   }
 });
 
-// Save Onboarding / Preferred Language
 app.post('/api/user/preferences', async (req, res) => {
   const { telegram_id, preferred_lang, onboarding_done } = req.body;
   if (!telegram_id || !pool) return res.json({ ok: true });
@@ -852,7 +970,6 @@ app.post('/api/user/preferences', async (req, res) => {
   } catch { res.json({ ok: false }); }
 });
 
-// 3. KYC Submit (Forwards ID & Selfie Photos straight to Admin Group; zero bytes in DB)
 app.post('/api/kyc/submit', async (req, res) => {
   const { telegram_id, phone_number, full_name, national_id, id_photo_base64, selfie_base64 } = req.body;
   if (!telegram_id || !phone_number || !full_name || !national_id) {
@@ -884,7 +1001,6 @@ app.post('/api/kyc/submit', async (req, res) => {
   }
 });
 
-// 4. Welcome Bonus ($0.50 + @Binance_ethiopa Channel Check)
 app.post('/api/claim-welcome', async (req, res) => {
   const { telegram_id } = req.body;
   const BONUS_USD = 0.50;
@@ -917,7 +1033,6 @@ app.post('/api/claim-welcome', async (req, res) => {
   }
 });
 
-// 5. Task Stages (Stage 4 = 10 Invites AND $16+ Approved Deposits)
 app.post('/api/claim-stage', async (req, res) => {
   const { telegram_id, stage } = req.body;
   const stageNum = parseInt(stage);
@@ -933,7 +1048,7 @@ app.post('/api/claim-stage', async (req, res) => {
     let rewardUSD = 0, col = '';
     if (stageNum === 1) {
       if (user.stage1_claimed === 1) return res.status(400).json({ error: 'Stage 1 already claimed' });
-      if (REQUIRE_KYC && user.kyc_status !== 'Approved') return res.status(400).json({ error: 'Stage 1 requires Approved KYC.' });
+      if (user.kyc_status !== 'Approved') return res.status(400).json({ error: 'Stage 1 requires Approved KYC.' });
       rewardUSD = 1.00; col = 'stage1_claimed';
     } else if (stageNum === 2) {
       if (user.stage1_claimed !== 1) return res.status(400).json({ error: 'Complete Stage 1 first' });
@@ -957,7 +1072,6 @@ app.post('/api/claim-stage', async (req, res) => {
       ]);
       const inv = parseInt(refCheck.rows[0].count);
       const dep = parseFloat(depSum.rows[0].total_usd);
-      // Both 10 invites AND $16+ deposit required
       if (inv < cfg.stage4_min_invites || dep < cfg.stage4_min_deposit_usd) {
         return res.status(400).json({
           error: `Stage 4 requires BOTH ${cfg.stage4_min_invites} invites (${inv}/${cfg.stage4_min_invites}) AND $${cfg.stage4_min_deposit_usd}+ approved deposits ($${dep.toFixed(2)}/$${cfg.stage4_min_deposit_usd}).`
@@ -979,7 +1093,30 @@ app.post('/api/claim-stage', async (req, res) => {
   }
 });
 
-// 6. Add Funds (Exact Verify Server GET Spec + On-Chain + Screenshot to Telegram)
+app.post('/api/daily-spin', async (req, res) => {
+  const { telegram_id } = req.body;
+  if (!telegram_id || !pool) return res.status(400).json({ error: 'Invalid request' });
+  const now = new Date();
+  try {
+    const uRes = await pool.query('SELECT balance_usd, last_spin_at, is_banned FROM users WHERE telegram_id = $1', [telegram_id.toString()]);
+    if (uRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    if (uRes.rows[0].is_banned === 1) return res.status(403).json({ error: 'Account banned.' });
+    if (uRes.rows[0].last_spin_at) {
+      const hrs = (now - new Date(uRes.rows[0].last_spin_at)) / 3600000;
+      if (hrs < 24) return res.status(400).json({ error: `Next spin available in ${(24 - hrs).toFixed(1)} hours.` });
+    }
+    const wonUSD = parseFloat(((Math.random() * 0.20) + 0.05).toFixed(2));
+    const up = await pool.query(
+      'UPDATE users SET balance_usd = balance_usd + $1, last_spin_at = $2 WHERE telegram_id = $3 RETURNING balance_usd',
+      [wonUSD, now.toISOString(), telegram_id.toString()]
+    );
+    await pool.query(`INSERT INTO transactions (telegram_id, type, amount_usd, details) VALUES ($1, 'SPIN_WIN', $2, 'Daily Spin')`, [telegram_id.toString(), wonUSD]);
+    res.json({ success: true, won_usd: wonUSD, balance_usd: parseFloat(up.rows[0].balance_usd) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const handleAddFunds = async (req, res) => {
   const { telegram_id, currency, amount, payment_method, transaction_ref, sms_text, screenshot_base64 } = req.body;
   const cleanRef = (transaction_ref || '').trim();
@@ -990,7 +1127,7 @@ const handleAddFunds = async (req, res) => {
 
   try {
     const cfg = await getSystemConfig();
-    const acc = cfg.accounts.find(a => a.key_slug === payment_method || a.label === payment_method);
+    const acc = findActiveAccount(cfg.accounts, payment_method);
     if (!acc || !acc.account_value) {
       return res.status(400).json({ error: `Payment method ${payment_method} is unavailable.` });
     }
@@ -1028,12 +1165,9 @@ const handleAddFunds = async (req, res) => {
       }
     }
 
-    // Retryable state from Verify Server ("Pending" or "Resolving")
     if (ver.outcome === 'RETRY') {
       return res.status(200).json({ success: false, retryable: true, status: ver.status, message: ver.message });
     }
-
-    // Hard Reject ("AlreadyUsed", "InvalidAmount", "Invalid_Transaction_Type", or bad on-chain hash)
     if (ver.outcome === 'REJECT') {
       await recordFakeAttempt(telegram_id, ver.reason);
       return res.status(400).json({ error: `❌ ${ver.reason}` });
@@ -1101,7 +1235,6 @@ const handleAddFunds = async (req, res) => {
 app.post('/api/funds/add', handleAddFunds);
 app.post('/api/deposit/submit', handleAddFunds);
 
-// 7. Store: Separate Paid Checkout (`store_orders`)
 const STORE_CATALOG = {
   VISA:       { name: 'International Virtual Visa Card', priceUsd: 1.50 },
   MASTERCARD: { name: 'International Virtual MasterCard', priceUsd: 1.50 },
@@ -1122,7 +1255,7 @@ app.post('/api/store/order', async (req, res) => {
 
   try {
     const cfg = await getSystemConfig();
-    const acc = cfg.accounts.find(a => a.key_slug === payment_method || a.label === payment_method);
+    const acc = findActiveAccount(cfg.accounts, payment_method);
     if (!acc || !acc.account_value) return res.status(400).json({ error: 'Selected payment method is unavailable.' });
 
     const uRes = await pool.query('SELECT first_name, username, is_banned FROM users WHERE telegram_id = $1', [telegram_id.toString()]);
@@ -1163,7 +1296,6 @@ app.post('/api/store/order', async (req, res) => {
     );
     const orderId = ins.rows[0].id;
 
-    // If auto-verified by bank/chain, fulfill right away!
     if (ver.outcome === 'VERIFIED') {
       const ful = await approveStoreOrderById(orderId, acc.pool_type === 'ETB_OWNER' ? 'VERIFY_SERVER' : 'AUTO_ONCHAIN');
       return res.json({ success: true, verified: true, message: `🎉 Payment verified! ${ful.deliveryInfo}`, order_code: orderCode });
@@ -1194,7 +1326,6 @@ app.get('/api/store/my', async (req, res) => {
   }
 });
 
-// 8. Withdrawals & User Ledger History
 app.post('/api/withdraw', async (req, res) => {
   const { telegram_id, amount_usd, payment_method, account_number } = req.body;
   const amount = parseFloat(amount_usd);
@@ -1254,7 +1385,7 @@ app.get('/api/user/transactions', async (req, res) => {
   } catch { res.json([]); }
 });
 
-// ═════════════════════ 11. P2P MARKETPLACE (ESCROW + SELLER PAYOUT + REFRESH + CANCEL) ═════════════════════
+// ═════════════════════ 11. P2P MARKETPLACE (BUY / SELL / MY ADS / REFRESH / CANCEL) ═════════════════════
 
 app.get('/api/p2p/ads', async (req, res) => {
   if (!pool) return res.json([]);
@@ -1266,8 +1397,22 @@ app.get('/api/p2p/ads', async (req, res) => {
       LEFT JOIN users u ON a.creator_id = u.telegram_id
       WHERE a.status = 'ACTIVE' AND a.remaining_usd > 0 ORDER BY a.id DESC
     `);
-    p2pAdsCache = { data: ads.rows, expiresAt: now + 15000 }; // 15s RAM cache
+    p2pAdsCache = { data: ads.rows, expiresAt: now + 15000 };
     res.json(ads.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/p2p/my', async (req, res) => {
+  const { telegram_id } = req.query;
+  if (!telegram_id || !pool) return res.json({ my_ads: [], my_trades: [] });
+  try {
+    const [ads, trades] = await Promise.all([
+      pool.query('SELECT * FROM p2p_ads WHERE creator_id = $1 ORDER BY id DESC LIMIT 20', [telegram_id.toString()]),
+      pool.query('SELECT * FROM p2p_trades WHERE buyer_id = $1 OR seller_id = $1 ORDER BY id DESC LIMIT 20', [telegram_id.toString()])
+    ]);
+    res.json({ my_ads: ads.rows, my_trades: trades.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1280,13 +1425,13 @@ app.post('/api/p2p/ads/create', async (req, res) => {
 
   const typeUpper = trade_type.toUpperCase();
   if (typeUpper === 'SELL' && (!seller_payout_method || !seller_payout_account)) {
-    return res.status(400).json({ error: 'Please provide your CBE or Telebirr account to receive your Birr payout when sold!' });
+    return res.status(400).json({ error: 'Please provide your CBE or Telebirr account to receive your Birr payout!' });
   }
 
   try {
     const uRes = await pool.query('SELECT kyc_status, is_banned FROM users WHERE telegram_id = $1', [telegram_id.toString()]);
     if (uRes.rows[0]?.is_banned === 1) return res.status(403).json({ error: 'Account banned.' });
-    if (REQUIRE_KYC && (!uRes.rows[0] || uRes.rows[0].kyc_status !== 'Approved')) {
+    if (!uRes.rows[0] || uRes.rows[0].kyc_status !== 'Approved') {
       return res.status(403).json({ error: 'KYC verification is required before posting P2P ads.' });
     }
 
@@ -1342,17 +1487,19 @@ app.post('/api/p2p/ads/cancel', async (req, res) => {
   }
 });
 
+// Handles both: Buyer buying from SELL ad, AND Seller selling to BUY ad!
 app.post('/api/p2p/trades/create', async (req, res) => {
-  const { buyer_id, ad_id, amount_usdt, payment_method, receiving_id } = req.body;
-  if (!buyer_id || !ad_id || !amount_usdt) return res.status(400).json({ error: 'Missing trade parameters' });
+  const { user_id, buyer_id, ad_id, amount_usdt, payment_method, receiving_id, seller_payout_account } = req.body;
+  const actorId = String(user_id || buyer_id || '');
+  if (!actorId || !ad_id || !amount_usdt) return res.status(400).json({ error: 'Missing trade parameters' });
   if (!pool) return res.status(500).json({ error: 'Database not connected' });
 
   const client = await pool.connect();
   try {
     const cfg = await getSystemConfig();
-    const uRes = await client.query('SELECT kyc_status, is_banned FROM users WHERE telegram_id = $1', [buyer_id.toString()]);
+    const uRes = await client.query('SELECT kyc_status, is_banned FROM users WHERE telegram_id = $1', [actorId]);
     if (uRes.rows[0]?.is_banned === 1) return res.status(403).json({ error: 'Account banned.' });
-    if (REQUIRE_KYC && (!uRes.rows[0] || uRes.rows[0].kyc_status !== 'Approved')) {
+    if (!uRes.rows[0] || uRes.rows[0].kyc_status !== 'Approved') {
       return res.status(403).json({ error: 'KYC verification is required before trading.' });
     }
 
@@ -1367,22 +1514,50 @@ app.post('/api/p2p/trades/create', async (req, res) => {
       return res.status(400).json({ error: 'Ad unavailable or insufficient USDT remaining.' });
     }
     const ad = adRes.rows[0];
+    if (String(ad.creator_id) === actorId) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'You cannot trade on your own ad.' });
+    }
+
+    let finalBuyerId, finalSellerId, sellerPayoutStr;
+    if (ad.trade_type === 'BUY') {
+      // User clicked "Sell USDT" on a merchant's BUY ad -> Lock user's USDT!
+      if (!seller_payout_account) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Enter your CBE or Telebirr account to receive payment.' });
+      }
+      const lockSell = await client.query(
+        `UPDATE users SET balance_usd = balance_usd - $1, locked_usd = locked_usd + $1 WHERE telegram_id = $2 AND balance_usd >= $1`,
+        [calc.gross, actorId]
+      );
+      if (lockSell.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient USD Vault balance to sell.' });
+      }
+      finalSellerId = actorId;
+      finalBuyerId = ad.creator_id;
+      sellerPayoutStr = `${payment_method || 'Telebirr/CBE'}: ${seller_payout_account}`;
+    } else {
+      // User clicked "Buy USDT" on a merchant's SELL ad
+      finalBuyerId = actorId;
+      finalSellerId = ad.creator_id;
+      sellerPayoutStr = ad.seller_payout_account ? `${ad.seller_payout_method || ''}: ${ad.seller_payout_account}` : null;
+    }
+
     const finalCalc = calcOrder(calc.gross, parseFloat(ad.price_etb), cfg.p2p_fee_percent);
     const sellerPayoutEtb = Math.round(finalCalc.net * parseFloat(ad.price_etb) * 100) / 100;
-    const sellerAccStr = ad.seller_payout_account ? `${ad.seller_payout_method || ''}: ${ad.seller_payout_account}` : null;
-
     const tradeCode = 'P2P-' + Math.floor(100000 + Math.random() * 900000);
     const eatNow = formatEAT();
 
     const tradeRes = await client.query(
       `INSERT INTO p2p_trades (trade_code, ad_id, buyer_id, seller_id, amount_usd, fee_usd, net_usd, amount_etb, seller_payout_etb, price_rate, payment_method, receiving_id, seller_payout_account, status, expires_at, eat_time)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'PENDING', NOW() + INTERVAL '15 minutes', $14) RETURNING *`,
-      [tradeCode, ad.id, buyer_id.toString(), ad.creator_id, finalCalc.gross, finalCalc.fee, finalCalc.net, finalCalc.etbTotal, sellerPayoutEtb, ad.price_etb, payment_method || 'Telebirr/CBE', receiving_id || '', sellerAccStr, eatNow]
+      [tradeCode, ad.id, finalBuyerId, finalSellerId, finalCalc.gross, finalCalc.fee, finalCalc.net, finalCalc.etbTotal, sellerPayoutEtb, ad.price_etb, payment_method || 'Telebirr/CBE', receiving_id || '', sellerPayoutStr, eatNow]
     );
     await client.query('COMMIT');
     invalidateP2PCache();
 
-    res.json({ success: true, trade: tradeRes.rows[0], server_now: new Date().toISOString(), message: 'Order created! Complete payment within 15 minutes.' });
+    res.json({ success: true, trade: tradeRes.rows[0], server_now: new Date().toISOString(), message: 'Order created! Complete within 15 minutes.' });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -1391,7 +1566,6 @@ app.post('/api/p2p/trades/create', async (req, res) => {
   }
 });
 
-// Lightweight Refresh Endpoint for 15-min Order Window
 app.get('/api/p2p/trades/:trade_code', async (req, res) => {
   if (!pool) return res.status(404).json({ error: 'Not connected' });
   try {
@@ -1403,6 +1577,10 @@ app.get('/api/p2p/trades/:trade_code', async (req, res) => {
       const up = await pool.query(`UPDATE p2p_trades SET status = 'EXPIRED' WHERE trade_code = $1 AND status = 'PENDING' RETURNING *`, [trade.trade_code]);
       if (up.rowCount > 0) {
         trade = up.rows[0];
+        const adCheck = await pool.query(`SELECT trade_type FROM p2p_ads WHERE id = $1`, [trade.ad_id]);
+        if (adCheck.rows[0]?.trade_type === 'BUY' && !String(trade.seller_id).startsWith('SYSTEM_')) {
+          await pool.query(`UPDATE users SET locked_usd = GREATEST(0, locked_usd - $1), balance_usd = balance_usd + $1 WHERE telegram_id = $2`, [trade.amount_usd, trade.seller_id]);
+        }
         await pool.query(`UPDATE p2p_ads SET remaining_usd = remaining_usd + $1 WHERE id = $2`, [trade.amount_usd, trade.ad_id]);
         invalidateP2PCache();
       }
@@ -1413,7 +1591,6 @@ app.get('/api/p2p/trades/:trade_code', async (req, res) => {
   }
 });
 
-// Mark Paid (NOT auto-approved: goes to Admin Group with screenshot for strict verification!)
 app.post('/api/p2p/trades/mark-paid', async (req, res) => {
   const { trade_code, payment_ref, screenshot_base64 } = req.body;
   if (!trade_code || !payment_ref) return res.status(400).json({ error: 'Trade code and payment reference required' });
@@ -1440,7 +1617,7 @@ app.post('/api/p2p/trades/mark-paid', async (req, res) => {
     await pool.query(`UPDATE p2p_trades SET status = 'VERIFYING', payment_ref = $1 WHERE trade_code = $2`, [payment_ref.trim(), trade_code]);
 
     const cap = `🤝 <b>P2P PAYMENT PROOF (${trade_code})</b>\n👤 Buyer: <code>${trade.buyer_id}</code>\n💵 Paid: <b>${trade.amount_etb} ETB</b>\n🪙 Net Release: <b>$${trade.net_usd} USDT</b> (Fee: $${trade.fee_usd})\n🏦 Via: ${escHtml(trade.payment_method)}\n🧾 Ref: <code>${escHtml(payment_ref)}</code>\n💼 Seller Payout: ${escHtml(trade.seller_payout_account || 'System')}\n🕒 ${formatEAT()}`;
-    const kb = { inline_keyboard: [[{ text: '🔓 Release Crypto', callback_data: `p2p_rel:${trade_code}` }]] };
+    const kb = { inline_keyboard: [[{ text: '🔓 Release Crypto', callback_data: `p2p_rel:${trade_code}` }, { text: '❌ Reject', callback_data: `p2p_rej:${trade_code}` }]] };
     await sendBase64PhotoToGroup(screenshot_base64, cap, kb);
 
     res.json({ success: true, status: 'VERIFYING', message: 'Payment proof sent! Tap Refresh after verification.' });
@@ -1462,11 +1639,15 @@ app.post('/api/p2p/trades/cancel', async (req, res) => {
       return res.status(400).json({ error: 'Only PENDING orders can be cancelled.' });
     }
     const trade = tRes.rows[0];
-    if (telegram_id && String(trade.buyer_id) !== String(telegram_id)) {
+    if (telegram_id && String(trade.buyer_id) !== String(telegram_id) && String(trade.seller_id) !== String(telegram_id)) {
       await client.query('ROLLBACK');
-      return res.status(403).json({ error: 'Not authorized to cancel this order.' });
+      return res.status(403).json({ error: 'Not authorized.' });
     }
     await client.query(`UPDATE p2p_trades SET status = 'CANCELLED' WHERE trade_code = $1`, [trade_code]);
+    const adCheck = await client.query(`SELECT trade_type FROM p2p_ads WHERE id = $1`, [trade.ad_id]);
+    if (adCheck.rows[0]?.trade_type === 'BUY' && !String(trade.seller_id).startsWith('SYSTEM_')) {
+      await client.query(`UPDATE users SET locked_usd = GREATEST(0, locked_usd - $1), balance_usd = balance_usd + $1 WHERE telegram_id = $2`, [trade.amount_usd, trade.seller_id]);
+    }
     await client.query(`UPDATE p2p_ads SET remaining_usd = remaining_usd + $1 WHERE id = $2`, [trade.amount_usd, trade.ad_id]);
     await client.query('COMMIT');
     invalidateP2PCache();
@@ -1484,7 +1665,9 @@ app.post('/api/p2p/trades/dispute', async (req, res) => {
   if (!trade_code || !pool) return res.status(400).json({ error: 'Trade code required' });
   try {
     await pool.query(`UPDATE p2p_trades SET status = 'DISPUTED' WHERE trade_code = $1`, [trade_code]);
-    notifyAdminGroup(`⚠️ <b>P2P DISPUTE OPENED (${escHtml(trade_code)})</b>\nReason: ${escHtml(reason || 'User opened dispute')}\n🕒 ${formatEAT()}`);
+    notifyAdminGroup(`⚠️ <b>P2P DISPUTE OPENED (${escHtml(trade_code)})</b>\nReason: ${escHtml(reason || 'User opened dispute')}\n🕒 ${formatEAT()}`, {
+      inline_keyboard: [[{ text: '🔓 Release Crypto', callback_data: `p2p_rel:${trade_code}` }, { text: '❌ Reject & Cancel', callback_data: `p2p_rej:${trade_code}` }]]
+    });
     res.json({ success: true, message: 'Dispute opened. Support notified in Telegram.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1493,7 +1676,6 @@ app.post('/api/p2p/trades/dispute', async (req, res) => {
 
 // ═════════════════════ 12. ADMIN PANEL APIS (ACCOUNTS, ANALYTICS, APPROVALS) ═════════════════════
 
-// Accounts CRUD
 app.get('/api/admin/accounts', auth, async (req, res) => {
   if (!pool) return res.json([]);
   const rows = await pool.query('SELECT * FROM payment_accounts ORDER BY sort_order ASC, id ASC');
@@ -1543,7 +1725,6 @@ app.post('/api/admin/accounts/delete', auth, async (req, res) => {
   }
 });
 
-// Analytics & Queues
 app.get('/api/admin/analytics', auth, async (req, res) => {
   if (!pool) return res.status(500).json({ error: 'DB not connected' });
   try {
@@ -1555,7 +1736,7 @@ app.get('/api/admin/analytics', auth, async (req, res) => {
       pool.query(`SELECT COALESCE(SUM(amount_usd),0) AS total_in FROM nbiyu_ledger WHERE direction='IN'`),
       pool.query(`SELECT COALESCE(SUM(amount_usd),0) AS total_out FROM nbiyu_ledger WHERE direction='OUT'`),
       pool.query(`SELECT channel, COALESCE(SUM(CASE WHEN direction='IN' THEN amount_usd ELSE 0 END),0) AS in_usd, COALESCE(SUM(CASE WHEN direction='OUT' THEN amount_usd ELSE 0 END),0) AS out_usd, COUNT(*) AS tx_count FROM nbiyu_ledger GROUP BY channel ORDER BY in_usd DESC`),
-      pool.query(`SELECT (SELECT COUNT(*) FROM deposits WHERE status='PENDING') AS pending_deposits, (SELECT COUNT(*) FROM store_orders WHERE status='PENDING') AS pending_store, (SELECT COUNT(*) FROM withdrawals WHERE status='PENDING') AS pending_withdrawals, (SELECT COUNT(*) FROM p2p_trades WHERE status IN ('PENDING','PAID','VERIFYING','DISPUTED')) AS active_p2p_trades`)
+      pool.query(`SELECT (SELECT COUNT(*) FROM deposits WHERE status='PENDING') AS pending_deposits, (SELECT COUNT(*) FROM store_orders WHERE status='PENDING') AS pending_store, (SELECT COUNT(*) FROM withdrawals WHERE status='PENDING') AS pending_withdrawals, (SELECT COUNT(*) FROM p2p_trades WHERE status IN ('PENDING','PAID','VERIFYING','DISPUTED')) AS active_p2p_trades, (SELECT COUNT(*) FROM p2p_trades WHERE seller_payout_status='PENDING_PAYOUT') AS pending_seller_payouts`)
     ]);
 
     const nIn = parseFloat(nbiyuIn.rows[0].total_in), nOut = parseFloat(nbiyuOut.rows[0].total_out);
@@ -1580,14 +1761,15 @@ app.get('/api/admin/nbiyu-ledger', auth, async (req, res) => {
 
 app.get('/api/admin/pending', auth, async (req, res) => {
   if (!pool) return res.json({});
-  const [deps, stores, withs, kycs, trades] = await Promise.all([
+  const [deps, stores, withs, kycs, trades, payouts] = await Promise.all([
     pool.query(`SELECT * FROM deposits WHERE status='PENDING' ORDER BY id DESC`),
     pool.query(`SELECT * FROM store_orders WHERE status='PENDING' ORDER BY id DESC`),
     pool.query(`SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC`),
     pool.query(`SELECT telegram_id, first_name, username, phone_number, kyc_full_name, national_id, created_at FROM users WHERE kyc_status='Pending' ORDER BY id DESC`),
-    pool.query(`SELECT * FROM p2p_trades WHERE status IN ('PENDING','PAID','VERIFYING','DISPUTED') ORDER BY id DESC`)
+    pool.query(`SELECT * FROM p2p_trades WHERE status IN ('PENDING','PAID','VERIFYING','DISPUTED') ORDER BY id DESC`),
+    pool.query(`SELECT * FROM p2p_trades WHERE status='RELEASED' AND seller_payout_status='PENDING_PAYOUT' ORDER BY id DESC`)
   ]);
-  res.json({ pending_deposits: deps.rows, pending_store_orders: stores.rows, pending_withdrawals: withs.rows, pending_kycs: kycs.rows, active_p2p_trades: trades.rows });
+  res.json({ pending_deposits: deps.rows, pending_store_orders: stores.rows, pending_withdrawals: withs.rows, pending_kycs: kycs.rows, active_p2p_trades: trades.rows, pending_seller_payouts: payouts.rows });
 });
 
 app.get('/api/admin/users', auth, async (req, res) => {
@@ -1625,7 +1807,7 @@ app.post('/api/admin/approve-withdrawal', auth, async (req, res) => {
   res.json({ success: true, message: 'Withdrawal marked COMPLETED!' });
 });
 app.post('/api/admin/reject-withdrawal', auth, async (req, res) => {
-  const r = await rejectWithdrawalById(req.body.withdrawal_id, req.body.reason || 'Rejected by Admin', 'ADMIN_PANEL');
+  const r = await rejectWithdrawalById(req.body.withdrawal_id, req.body.reason || 'Rejected by Admin');
   if (!r.ok) return res.status(400).json({ error: r.error });
   res.json({ success: true, message: 'Withdrawal rejected & refunded!' });
 });
@@ -1636,9 +1818,19 @@ app.post('/api/admin/kyc/review', auth, async (req, res) => {
   res.json({ success: true, message: `KYC ${decision}` });
 });
 app.post('/api/admin/p2p/release', auth, async (req, res) => {
-  const r = await releaseP2PTradeByCode(req.body.trade_code, 'ADMIN_PANEL');
+  const r = await releaseP2PTradeByCode(req.body.trade_code);
   if (!r.ok) return res.status(400).json({ error: r.error });
   res.json({ success: true, message: `Trade ${req.body.trade_code} released!` });
+});
+app.post('/api/admin/p2p/reject', auth, async (req, res) => {
+  const r = await rejectP2PTradeByCode(req.body.trade_code, req.body.reason || 'Rejected by Admin');
+  if (!r.ok) return res.status(400).json({ error: r.error });
+  res.json({ success: true, message: `Trade ${req.body.trade_code} rejected!` });
+});
+app.post('/api/admin/p2p/mark-seller-paid', auth, async (req, res) => {
+  const { trade_code } = req.body;
+  await pool.query(`UPDATE p2p_trades SET seller_payout_status = 'PAID' WHERE trade_code = $1`, [trade_code]);
+  res.json({ success: true, message: `Seller payout for ${trade_code} marked PAID!` });
 });
 app.post('/api/admin/set-rate', auth, async (req, res) => {
   const newRate = parseFloat(req.body.rate);
@@ -1787,3 +1979,5 @@ app.listen(PORT, HOST, () => {
       .then(d => console.log('🔗 Telegram Webhook Status:', d?.ok ? '✅ Active' : d?.description));
   }
 });
+
+
