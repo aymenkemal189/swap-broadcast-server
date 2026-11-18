@@ -2,162 +2,164 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Binance Ethiopia · Master Admin &amp; Nbiyu Accounting</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Binance ET · Mobile Admin Console</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root, [data-theme="dark"] {
-      --bg: #0b0e14;
-      --card: #161b26;
-      --card-alt: #1d2331;
-      --text: #e8ecf3;
-      --muted: #8b95a7;
-      --border: #252c3a;
-      --gold: #f0b90b;
-      --gold-bg: rgba(240, 185, 11, 0.12);
-      --green: #0ecb81;
-      --green-bg: rgba(14, 203, 129, 0.14);
-      --red: #f6465d;
-      --red-bg: rgba(246, 70, 93, 0.14);
-      --blue: #38bdf8;
-      --blue-bg: rgba(56, 189, 248, 0.14);
-      --purple: #a78bfa;
-      --purple-bg: rgba(167, 139, 250, 0.14);
+      --bg: #0b0e14; --card: #161b26; --card-alt: #1d2331; --text: #e8ecf3; --muted: #8b95a7; --border: #252c3a;
+      --gold: #f0b90b; --gold-bg: rgba(240,185,11,0.12); --green: #0ecb81; --green-bg: rgba(14,203,129,0.14);
+      --red: #f6465d; --red-bg: rgba(246,70,93,0.14); --blue: #38bdf8; --blue-bg: rgba(56,189,248,0.14);
+      --purple: #a78bfa; --purple-bg: rgba(167,139,250,0.14); --nav-bg: rgba(18,22,30,0.97);
     }
-
     [data-theme="light"] {
-      --bg: #f1f5f9;
-      --card: #ffffff;
-      --card-alt: #f8fafc;
-      --text: #0f172a;
-      --muted: #64748b;
-      --border: #e2e8f0;
-      --gold: #d99f00;
-      --gold-bg: #fefce8;
-      --green: #059669;
-      --green-bg: #ecfdf5;
-      --red: #e11d48;
-      --red-bg: #fff1f2;
-      --blue: #0284c7;
-      --blue-bg: #f0f9ff;
-      --purple: #7c3aed;
-      --purple-bg: #f5f3ff;
+      --bg: #f1f5f9; --card: #ffffff; --card-alt: #f8fafc; --text: #0f172a; --muted: #64748b; --border: #e2e8f0;
+      --gold: #d99f00; --gold-bg: #fefce8; --green: #059669; --green-bg: #ecfdf5;
+      --red: #e11d48; --red-bg: #fff1f2; --blue: #0284c7; --blue-bg: #f0f9ff;
+      --purple: #7c3aed; --purple-bg: #f5f3ff; --nav-bg: rgba(255,255,255,0.97);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; }
-    body { background: var(--bg); color: var(--text); min-height: 100vh; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; min-height: 100vh; background: var(--bg); color: var(--text); overflow-x: hidden; }
 
-    /* Login */
-    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .login-box { width: 100%; max-width: 400px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 28px 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.35); }
+    /* Login Gate */
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 18px; }
+    .login-box { width: 100%; max-width: 400px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 24px 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
 
-    /* Layout */
-    .dash-wrap { display: none; flex-direction: column; min-height: 100vh; }
+    /* Mobile-First Shell */
+    .dash-wrap { display: none; flex-direction: column; min-height: 100vh; width: 100%; }
     .topbar {
-      background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px;
-      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+      background: var(--nav-bg); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+      padding: max(12px, env(safe-area-inset-top, 12px)) 14px 12px;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
       position: sticky; top: 0; z-index: 50;
     }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 16px; }
-    .brand-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
-    .topbar-actions { display: flex; align-items: center; gap: 8px; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 14.5px; }
+    .brand-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .topbar-actions { display: flex; align-items: center; gap: 6px; }
 
-    .nav-tabs {
-      background: var(--card); border-bottom: 1px solid var(--border);
-      display: flex; overflow-x: auto; padding: 0 12px; gap: 6px; scrollbar-width: none;
+    .main-container {
+      width: 100%; max-width: 720px; margin: 0 auto;
+      padding: 12px 12px 90px; flex: 1;
     }
-    .nav-tabs::-webkit-scrollbar { display: none; }
-    .nav-tab {
-      padding: 12px 14px; font-size: 13px; font-weight: 700; color: var(--muted);
-      border: none; background: transparent; cursor: pointer; border-bottom: 2.5px solid transparent;
-      white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    .panel { display: none; width: 100%; animation: fadeIn 0.15s ease-out; }
+    .panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Cards & KPIs */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 12px; width: 100%; }
+    .card-title { font-size: 12.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+    .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 15px; margin-bottom: 10px; }
+    .kpi-card.etb { border-left: 4px solid var(--green); }
+    .kpi-card.usd { border-left: 4px solid var(--purple); }
+    .kpi-card.sys { border-left: 4px solid var(--gold); }
+    .kpi-label { font-size: 11px; font-weight: 800; letter-spacing: 0.3px; }
+    .kpi-val { font-size: 24px; font-weight: 900; margin: 4px 0; }
+    .kpi-sub { font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+
+    /* Mobile Item Cards (Replaces wide tables!) */
+    .m-item {
+      background: var(--card-alt); border: 1px solid var(--border); border-radius: 14px;
+      padding: 12px; margin-bottom: 10px; font-size: 12.5px; line-height: 1.55;
     }
-    .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
-    .count-pill { background: var(--red); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 800; }
+    .m-item-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+    .m-item-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; margin-top: 10px; }
+    .m-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+    .m-row span:first-child { color: var(--muted); }
 
-    .main-container { width: 100%; max-width: 1280px; margin: 0 auto; padding: 16px; flex: 1; }
-    .panel { display: none; }
-    .panel.active { display: block; animation: fadeIn 0.15s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .mono { font-family: monospace; background: rgba(148,163,184,0.14); padding: 2px 6px; border-radius: 5px; cursor: pointer; word-break: break-all; font-size: 11.5px; }
 
-    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 16px; }
-    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 16px; }
-
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
-    .card-title { font-size: 13px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-
-    .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
-    .kpi-card.etb { border-top: 3px solid var(--green); }
-    .kpi-card.usd { border-top: 3px solid var(--purple); }
-    .kpi-card.sys { border-top: 3px solid var(--gold); }
-    .kpi-val { font-size: 26px; font-weight: 900; margin: 6px 0; }
-    .kpi-sub { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
-
-    /* Tables */
-    .table-wrap { width: 100%; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 680px; }
-    th { text-align: left; padding: 10px; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border); background: var(--card-alt); }
-    td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    tr:last-child td { border-bottom: none; }
-
-    .badge { padding: 3px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 800; display: inline-block; text-transform: uppercase; }
+    /* Badges */
+    .badge { padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; display: inline-block; text-transform: uppercase; }
     .badge-green { background: var(--green-bg); color: var(--green); }
     .badge-red { background: var(--red-bg); color: var(--red); }
     .badge-gold { background: var(--gold-bg); color: var(--gold); }
     .badge-purple { background: var(--purple-bg); color: var(--purple); }
     .badge-blue { background: var(--blue-bg); color: var(--blue); }
 
+    /* Forms & Buttons */
     .form-group { margin-bottom: 12px; }
     .form-label { display: block; font-size: 11.5px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
     .form-input, select, textarea {
-      width: 100%; background: var(--card-alt); border: 1px solid var(--border); border-radius: 10px;
-      padding: 10px 12px; color: var(--text); font-size: 13.5px; outline: none;
+      width: 100%; background: var(--card-alt); border: 1px solid var(--border); border-radius: 11px;
+      padding: 11px 12px; color: var(--text); font-size: 14px; outline: none;
     }
     .form-input:focus, textarea:focus { border-color: var(--gold); }
 
-    .btn { padding: 9px 14px; border-radius: 10px; border: none; font-weight: 800; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn {
+      padding: 10px 12px; border-radius: 10px; border: none; font-weight: 800; font-size: 12.5px;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px;
+    }
     .btn:disabled { opacity: 0.45; cursor: not-allowed; }
     .btn-gold { background: var(--gold); color: #0b0e14; }
     .btn-green { background: var(--green); color: #0b0e14; }
     .btn-red { background: var(--red); color: #fff; }
     .btn-purple { background: var(--purple); color: #0b0e14; }
     .btn-ghost { background: var(--card-alt); color: var(--text); border: 1px solid var(--border); }
-    .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 8px; }
-    .btn-block { width: 100%; padding: 12px; font-size: 14px; }
+    .btn-sm { padding: 6px 10px; font-size: 11.5px; min-height: 34px; border-radius: 8px; }
+    .btn-block { width: 100%; min-height: 44px; font-size: 14px; }
 
-    .queue-item {
-      background: var(--card-alt); border: 1px solid var(--border); border-radius: 12px;
-      padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    /* Sub-Tabs inside Pending / Filter */
+    .sub-pills { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 10px; scrollbar-width: none; }
+    .sub-pills::-webkit-scrollbar { display: none; }
+    .sub-pill {
+      padding: 7px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--card);
+      color: var(--muted); font-size: 11.5px; font-weight: 700; white-space: nowrap; cursor: pointer;
     }
-    .queue-meta { font-size: 12.5px; line-height: 1.6; }
-    .queue-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-    .mono { font-family: monospace; background: rgba(255,255,255,0.06); padding: 2px 5px; border-radius: 4px; cursor: pointer; }
+    .sub-pill.active { background: var(--gold); color: #0b0e14; border-color: var(--gold); }
 
+    /* Progress Bar */
     .progress-track { width: 100%; height: 10px; background: var(--card-alt); border-radius: 10px; overflow: hidden; margin: 10px 0; border: 1px solid var(--border); }
     .progress-fill { height: 100%; background: var(--green); width: 0%; transition: width 0.3s; }
 
-    .chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-    .chip-btn {
-      background: var(--card-alt); border: 1px solid var(--border); color: var(--text);
-      padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;
+    /* Mobile Bottom Navigation */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: 66px;
+      background: var(--nav-bg); backdrop-filter: blur(12px); border-top: 1px solid var(--border);
+      display: flex; align-items: stretch; z-index: 45; padding-bottom: env(safe-area-inset-bottom, 2px);
     }
+    .bnav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; color: var(--muted); font-size: 10px; font-weight: 600; cursor: pointer; position: relative;
+      border: none; background: transparent;
+    }
+    .bnav-item svg { width: 20px; height: 20px; fill: currentColor; }
+    .bnav-item.active { color: var(--gold); font-weight: 800; background: var(--gold-bg); }
+    .bnav-badge {
+      position: absolute; top: 6px; right: 18%; background: var(--red); color: #fff;
+      font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 10px; display: none;
+    }
+
+    /* Modals / Bottom Sheets */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(4px);
+      display: none; align-items: flex-end; justify-content: center; z-index: 100;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto;
+      background: var(--card); border-top: 1px solid var(--border); border-radius: 22px 22px 0 0;
+      padding: 20px 16px 28px; animation: slideUp 0.18s ease-out;
+    }
+    @keyframes slideUp { from { transform: translateY(25px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .chip-btn { background: var(--card-alt); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
     .chip-btn:hover { border-color: var(--gold); color: var(--gold); }
 
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 100; }
-    .modal-overlay.open { display: flex; }
-    .modal-box { width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 20px; }
-
     .toast {
-      position: fixed; bottom: 24px; right: 24px; background: var(--text); color: var(--bg);
-      padding: 10px 18px; border-radius: 12px; font-size: 13px; font-weight: 700; opacity: 0;
-      transform: translateY(20px); transition: all 0.25s; z-index: 200; pointer-events: none;
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 26px;
+      font-size: 12.5px; font-weight: 700; opacity: 0; transition: all 0.25s; z-index: 200; pointer-events: none; max-width: 90%; text-align: center;
     }
     .toast.success { background: var(--green); color: #0b0e14; }
     .toast.error { background: var(--red); color: #fff; }
-    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    .empty-box { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+    .empty-box { text-align: center; padding: 22px 14px; color: var(--muted); font-size: 12.5px; background: var(--card-alt); border-radius: 12px; border: 1px dashed var(--border); }
   </style>
 </head>
 <body>
@@ -165,351 +167,272 @@
   <!-- ═══════════════ LOGIN VIEW ═══════════════ -->
   <div class="login-wrap" id="loginView">
     <div class="login-box">
-      <h2 style="font-size:20px; font-weight:900; color:var(--gold); margin-bottom:4px;">Binance Ethiopia Admin</h2>
-      <p style="font-size:12px; color:var(--muted); margin-bottom:18px;">Master Accounting, Accounts Manager &amp; Broadcast</p>
-
+      <h2 style="font-size:20px; font-weight:900; color:var(--gold); margin-bottom:4px;">Binance ET · Admin</h2>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:18px;">Mobile Accounting, Accounts &amp; Broadcast</p>
       <div class="form-group">
         <label class="form-label">Server URL</label>
         <input type="text" class="form-input" id="loginServerUrl" />
       </div>
-
       <div class="form-group">
         <label class="form-label">Admin Secret Key (ADMIN_KEY)</label>
         <input type="password" class="form-input" id="loginAdminKey" placeholder="Enter ADMIN_KEY" onkeydown="if(event.key==='Enter') attemptLogin()" />
       </div>
-
       <button class="btn btn-gold btn-block" id="loginBtn" onclick="attemptLogin()">Unlock Dashboard</button>
     </div>
   </div>
 
-  <!-- ═══════════════ MAIN ADMIN DASHBOARD ═══════════════ -->
+  <!-- ═══════════════ MOBILE ADMIN SHELL ═══════════════ -->
   <div class="dash-wrap" id="dashView">
     <header class="topbar">
-      <div class="brand"><span class="brand-dot"></span><span>Binance ET · Master Admin</span></div>
+      <div class="brand"><span class="brand-dot"></span><span>Binance ET Admin</span></div>
       <div class="topbar-actions">
-        <button class="btn btn-ghost btn-sm" onclick="refreshAllData()">↻ Refresh</button>
-        <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">☀️ / 🌙</button>
-        <button class="btn btn-red btn-sm" onclick="logout()">Logout</button>
+        <button class="btn btn-ghost btn-sm" onclick="refreshAllData()">↻ Sync</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">☀/🌙</button>
+        <button class="btn btn-red btn-sm" onclick="logout()">Exit</button>
       </div>
     </header>
 
-    <nav class="nav-tabs">
-      <button class="nav-tab active" onclick="switchPanel('overview', this)">📊 Accounting</button>
-      <button class="nav-tab" onclick="switchPanel('pending', this)">
-        ⏳ Pending Approvals <span class="count-pill" id="pendingBadge">0</span>
-      </button>
-      <button class="nav-tab" onclick="switchPanel('accounts', this)">💳 Wallets &amp; Accounts</button>
-      <button class="nav-tab" onclick="switchPanel('ledger', this)">📒 Nbiyu Ledger</button>
-      <button class="nav-tab" onclick="switchPanel('users', this)">👥 Users &amp; Fraud</button>
-      <button class="nav-tab" onclick="switchPanel('broadcast', this)">📢 Swap Broadcast</button>
-    </nav>
-
     <main class="main-container">
 
-      <!-- ═══════ 1. OVERVIEW & ACCOUNTING ═══════ -->
+      <!-- ═══════ 1. ACCOUNTING OVERVIEW ═══════ -->
       <section id="panel-overview" class="panel active">
-        <div class="grid-3">
-          <div class="kpi-card etb">
-            <div style="font-size:12px; font-weight:700; color:var(--green);">OWNER ETB POOL (Telebirr &amp; CBE)</div>
-            <div class="kpi-val" id="kpiEtbNet">0.00 ETB</div>
-            <div style="font-size:11px; color:var(--muted);">Net Held ETB (Verified In − Paid Out)</div>
-            <div class="kpi-sub">
-              <span>In: <strong id="kpiEtbIn" style="color:var(--green);">0.00</strong></span>
-              <span>Out: <strong id="kpiEtbOut" style="color:var(--red);">0.00</strong></span>
-            </div>
-          </div>
-
-          <div class="kpi-card usd">
-            <div style="font-size:12px; font-weight:700; color:var(--purple);">NBIYU DOLLAR POOL (Crypto &amp; Pay IDs)</div>
-            <div class="kpi-val" id="kpiNbiyuNet">$0.00 USD</div>
-            <div style="font-size:11px; color:var(--muted);">Net Held by Nbiyu (In − Payouts)</div>
-            <div class="kpi-sub">
-              <span>In: <strong id="kpiNbiyuIn" style="color:var(--green);">$0.00</strong></span>
-              <span>Out: <strong id="kpiNbiyuOut" style="color:var(--red);">$0.00</strong></span>
-            </div>
-          </div>
-
-          <div class="kpi-card sys">
-            <div style="font-size:12px; font-weight:700; color:var(--gold);">SYSTEM USERS &amp; VAULT LIABILITY</div>
-            <div class="kpi-val" id="kpiUserVault">$0.00 USD</div>
-            <div style="font-size:11px; color:var(--muted);">Total User Vault Balances</div>
-            <div class="kpi-sub">
-              <span>Users: <strong id="kpiTotalUsers">0</strong> (KYC: <strong id="kpiVerifiedUsers">0</strong>)</span>
-              <span>Banned: <strong id="kpiBannedUsers" style="color:var(--red);">0</strong></span>
-            </div>
+        <div class="kpi-card etb">
+          <div class="kpi-label" style="color:var(--green);">OWNER ETB POOL (Telebirr &amp; CBE)</div>
+          <div class="kpi-val" id="kpiEtbNet">0.00 ETB</div>
+          <div style="font-size:11px; color:var(--muted);">Net Held ETB (Verified In − Paid Out)</div>
+          <div class="kpi-sub">
+            <span>In: <strong id="kpiEtbIn" style="color:var(--green);">0.00</strong></span>
+            <span>Out: <strong id="kpiEtbOut" style="color:var(--red);">0.00</strong></span>
           </div>
         </div>
 
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-title"><span>Nbiyu Wallets Breakdown</span><span class="badge badge-purple">Live SQL</span></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Channel / Wallet</th><th>Total IN ($)</th><th>Total OUT ($)</th><th>Net ($)</th><th>TXs</th></tr></thead>
-                <tbody id="channelBreakdownBody"><tr><td colspan="5" class="empty-box">No dollar ledger entries yet.</td></tr></tbody>
-              </table>
-            </div>
+        <div class="kpi-card usd">
+          <div class="kpi-label" style="color:var(--purple);">NBIYU DOLLAR POOL (Crypto &amp; Pay IDs)</div>
+          <div class="kpi-val" id="kpiNbiyuNet">$0.00 USD</div>
+          <div style="font-size:11px; color:var(--muted);">Net Held by Nbiyu (In − Payouts)</div>
+          <div class="kpi-sub">
+            <span>In: <strong id="kpiNbiyuIn" style="color:var(--green);">$0.00</strong></span>
+            <span>Out: <strong id="kpiNbiyuOut" style="color:var(--red);">$0.00</strong></span>
           </div>
+        </div>
 
-          <div class="card">
-            <div class="card-title"><span>Dynamic Dollar Rate Control</span></div>
-            <div class="form-group">
-              <label class="form-label">Active Dollar Rate (1 USD = ? ETB)</label>
-              <div style="display:flex; gap:8px;">
-                <input type="number" class="form-input" id="adminFxInput" step="0.01" />
-                <button class="btn btn-gold" onclick="updateFxRate()">Update Rate</button>
-              </div>
-              <p style="font-size:11.5px; color:var(--muted); margin-top:8px;">Updating this rate immediately updates Home, Store, P2P reference, Add Funds, and Withdraw across the Mini App.</p>
-            </div>
+        <div class="kpi-card sys">
+          <div class="kpi-label" style="color:var(--gold);">USERS &amp; VAULT LIABILITY</div>
+          <div class="kpi-val" id="kpiUserVault">$0.00 USD</div>
+          <div class="kpi-sub">
+            <span>Users: <strong id="kpiTotalUsers">0</strong> (KYC: <strong id="kpiVerifiedUsers">0</strong>)</span>
+            <span>Banned: <strong id="kpiBannedUsers" style="color:var(--red);">0</strong></span>
           </div>
+        </div>
+
+        <!-- Dollar Rate Control -->
+        <div class="card">
+          <div class="card-title"><span>Live Dollar Rate (Fee: 1% / 0.01)</span></div>
+          <div style="display:flex; gap:8px;">
+            <input type="number" class="form-input" id="adminFxInput" step="0.01" />
+            <button class="btn btn-gold" style="white-space:nowrap;" onclick="updateFxRate()">Save Rate</button>
+          </div>
+        </div>
+
+        <!-- Channel Breakdown Cards -->
+        <div class="card">
+          <div class="card-title"><span>Nbiyu Wallets Breakdown</span><span class="badge badge-purple">Live SQL</span></div>
+          <div id="channelBreakdownList"><div class="empty-box">No dollar ledger entries yet.</div></div>
         </div>
       </section>
 
       <!-- ═══════ 2. PENDING APPROVALS ═══════ -->
       <section id="panel-pending" class="panel">
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-title"><span>Pending Add Funds</span><span class="badge badge-gold" id="cntDep">0</span></div>
-            <div id="pendingDepositsList"><div class="empty-box">No pending deposits.</div></div>
-          </div>
-
-          <div class="card">
-            <div class="card-title"><span>Pending Store Orders (Cards / Numbers)</span><span class="badge badge-purple" id="cntStore">0</span></div>
-            <div id="pendingStoreList"><div class="empty-box">No pending store orders.</div></div>
-          </div>
+        <div class="sub-pills">
+          <button class="sub-pill active" onclick="filterPendingSection('all', this)">All (<span id="cntAll">0</span>)</button>
+          <button class="sub-pill" onclick="filterPendingSection('dep', this)">Add Funds (<span id="cntDep">0</span>)</button>
+          <button class="sub-pill" onclick="filterPendingSection('store', this)">Store (<span id="cntStore">0</span>)</button>
+          <button class="sub-pill" onclick="filterPendingSection('with', this)">Withdraw (<span id="cntWith">0</span>)</button>
+          <button class="sub-pill" onclick="filterPendingSection('kyc', this)">KYC (<span id="cntKyc">0</span>)</button>
+          <button class="sub-pill" onclick="filterPendingSection('p2p', this)">P2P (<span id="cntP2p">0</span>)</button>
+          <button class="sub-pill" onclick="filterPendingSection('spay', this)">Seller Pay (<span id="cntSellerPay">0</span>)</button>
         </div>
 
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-title"><span>Pending Withdrawals</span><span class="badge badge-red" id="cntWith">0</span></div>
-            <div id="pendingWithdrawalsList"><div class="empty-box">No pending withdrawals.</div></div>
-          </div>
-
-          <div class="card">
-            <div class="card-title"><span>Pending KYC Verifications</span><span class="badge badge-blue" id="cntKyc">0</span></div>
-            <div id="pendingKycsList"><div class="empty-box">No pending KYC requests.</div></div>
-          </div>
+        <div id="sec-dep" class="card">
+          <div class="card-title"><span>Pending Add Funds</span></div>
+          <div id="pendingDepositsList"><div class="empty-box">No pending deposits.</div></div>
         </div>
 
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-title"><span>Active P2P Escrow Trades</span><span class="badge badge-purple" id="cntP2p">0</span></div>
-            <div id="activeP2pTradesList"><div class="empty-box">No active P2P trades.</div></div>
-          </div>
+        <div id="sec-store" class="card">
+          <div class="card-title"><span>Pending Store Orders (Cards / Numbers)</span></div>
+          <div id="pendingStoreList"><div class="empty-box">No pending store orders.</div></div>
+        </div>
 
-          <div class="card">
-            <div class="card-title"><span>Pending P2P Seller ETB Payouts (After 3% Fee)</span><span class="badge badge-green" id="cntSellerPay">0</span></div>
-            <div id="pendingSellerPayoutsList"><div class="empty-box">No pending seller payouts.</div></div>
-          </div>
+        <div id="sec-with" class="card">
+          <div class="card-title"><span>Pending Withdrawals</span></div>
+          <div id="pendingWithdrawalsList"><div class="empty-box">No pending withdrawals.</div></div>
+        </div>
+
+        <div id="sec-kyc" class="card">
+          <div class="card-title"><span>Pending KYC Verifications</span></div>
+          <div id="pendingKycsList"><div class="empty-box">No pending KYC requests.</div></div>
+        </div>
+
+        <div id="sec-p2p" class="card">
+          <div class="card-title"><span>Active P2P Escrow Trades</span></div>
+          <div id="activeP2pTradesList"><div class="empty-box">No active P2P trades.</div></div>
+        </div>
+
+        <div id="sec-spay" class="card">
+          <div class="card-title"><span>Pending P2P Seller ETB Payouts</span></div>
+          <div id="pendingSellerPayoutsList"><div class="empty-box">No pending seller payouts.</div></div>
         </div>
       </section>
 
-      <!-- ═══════ 3. WALLETS & ACCOUNTS MANAGER (DB CRUD: ADD / EDIT / HIDE / DELETE) ═══════ -->
+      <!-- ═══════ 3. ACCOUNTS MANAGER ═══════ -->
       <section id="panel-accounts" class="panel">
         <div class="card">
           <div class="card-title">
-            <span>Receiving Accounts Manager (Saved in Neon DB)</span>
-            <button class="btn btn-gold btn-sm" onclick="openAddAccountModal()">+ Add New Account</button>
+            <span>Receiving Accounts (DB)</span>
+            <button class="btn btn-gold btn-sm" onclick="openAddAccountModal()">+ Add New</button>
           </div>
-          <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">
-            All accounts shown in the Mini App's Add Funds &amp; Store Checkout are loaded directly from here. Changes apply immediately (server cache auto-refreshes).
-          </p>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Label / Name</th>
-                  <th>Pool &amp; Group</th>
-                  <th>Account / Wallet / ID</th>
-                  <th>Holder</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="accountsTableBody">
-                <tr><td colspan="6" class="empty-box">Loading accounts...</td></tr>
-              </tbody>
-            </table>
-          </div>
+          <p style="font-size:11.5px; color:var(--muted); margin-bottom:12px;">Edit, hide, or delete any ETB or Crypto receiving account. Updates Mini App instantly.</p>
+          <div id="accountsMobileList"><div class="empty-box">Loading accounts...</div></div>
         </div>
       </section>
 
-      <!-- ═══════ 4. NBIYU DOLLAR LEDGER ═══════ -->
+      <!-- ═══════ 4. NBIYU LEDGER ═══════ -->
       <section id="panel-ledger" class="panel">
         <div class="card">
           <div class="card-title">
-            <span>Immutable Nbiyu Dollar Ledger (Exact EAT Timestamp)</span>
+            <span>Nbiyu Dollar Ledger (EAT)</span>
             <button class="btn btn-green btn-sm" onclick="exportLedgerCSV()">⬇ Export CSV</button>
           </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-            <select class="form-input" id="ledgerDirFilter" style="width:140px;" onchange="renderLedgerTable()">
-              <option value="ALL">All Directions</option>
-              <option value="IN">IN (Received)</option>
-              <option value="OUT">OUT (Paid Out)</option>
+          <div style="display:grid; grid-template-columns:110px 1fr; gap:8px; margin-bottom:12px;">
+            <select class="form-input" id="ledgerDirFilter" onchange="renderLedgerCards()">
+              <option value="ALL">All</option>
+              <option value="IN">IN (+)</option>
+              <option value="OUT">OUT (-)</option>
             </select>
-            <input type="text" class="form-input" id="ledgerSearch" placeholder="Search TxRef, User, Channel..." style="flex:1; min-width:200px;" oninput="renderLedgerTable()" />
+            <input type="text" class="form-input" id="ledgerSearch" placeholder="Search TxRef, User, Channel..." oninput="renderLedgerCards()" />
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr><th>TX Code</th><th>Dir</th><th>User</th><th>Channel &amp; Wallet</th><th>Amount ($)</th><th>TxRef</th><th>Verified By</th><th>Exact Time (EAT)</th></tr>
-              </thead>
-              <tbody id="ledgerTableBody"><tr><td colspan="8" class="empty-box">Loading ledger...</td></tr></tbody>
-            </table>
-          </div>
+          <div id="ledgerMobileList"><div class="empty-box">Loading ledger...</div></div>
         </div>
       </section>
 
-      <!-- ═══════ 5. USERS & FRAUD MONITOR ═══════ -->
+      <!-- ═══════ 5. USERS & FRAUD ═══════ -->
       <section id="panel-users" class="panel">
         <div class="card">
-          <div class="card-title"><span>Registered Users &amp; Fraud Monitor</span></div>
+          <div class="card-title"><span>Users, Vouchers &amp; Fraud</span></div>
           <div style="display:flex; gap:8px; margin-bottom:12px;">
-            <input type="text" class="form-input" id="userSearchInput" placeholder="Search Telegram ID, Name, or @username..." onkeydown="if(event.key==='Enter') loadUsers()" />
+            <input type="text" class="form-input" id="userSearchInput" placeholder="ID, Name, or @username..." onkeydown="if(event.key==='Enter') loadUsers()" />
             <button class="btn btn-gold" onclick="loadUsers()">Search</button>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Telegram ID</th><th>Name / Handle</th><th>Balance ($)</th><th>KYC</th><th>Strikes</th><th>Status</th><th>Actions</th></tr>
-              </thead>
-              <tbody id="usersTableBody"><tr><td colspan="7" class="empty-box">Loading users...</td></tr></tbody>
-            </table>
-          </div>
+          <div id="usersMobileList"><div class="empty-box">Loading users...</div></div>
         </div>
       </section>
 
       <!-- ═══════ 6. SWAP BROADCAST ENGINE ═══════ -->
       <section id="panel-broadcast" class="panel">
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-title"><span>Compose Telegram Broadcast</span></div>
-            <div class="form-group">
-              <label class="form-label">Audience</label>
-              <select class="form-input" id="bcAudience" onchange="document.getElementById('bcIdsGroup').style.display = this.value === 'SEGMENT' ? 'block' : 'none'">
-                <option value="SHEET">All Users (from Google Sheet CSV)</option>
-                <option value="SEGMENT">Specific User IDs</option>
-              </select>
-            </div>
-            <div class="form-group" id="bcIdsGroup" style="display:none;">
-              <label class="form-label">Target Telegram IDs (comma or newline separated)</label>
-              <textarea class="form-input" id="bcUserIds" rows="3" placeholder="123456789, 987654321"></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Message (Supports **bold**, _italic_, {username})</label>
-              <textarea class="form-input" id="bcText" rows="5" placeholder="Hello {username}! New update on Binance Ethiopia..."></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Photo URL (Optional)</label>
-              <input type="text" class="form-input" id="bcPhoto" placeholder="https://..." />
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <div class="form-group"><label class="form-label">Button Text</label><input type="text" class="form-input" id="bcBtnText" placeholder="Open Mini App" /></div>
-              <div class="form-group"><label class="form-label">Button URL</label><input type="text" class="form-input" id="bcBtnUrl" placeholder="https://t.me/..." /></div>
-            </div>
-            <button class="btn btn-gold btn-block" onclick="startBroadcast()">🚀 Send Broadcast Now</button>
+        <div class="card">
+          <div class="card-title"><span>Broadcast Status</span><span class="badge badge-blue" id="bcStateBadge">IDLE</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px;">
+            <span>Sent: <strong id="bcSent" style="color:var(--green);">0</strong></span>
+            <span>Failed: <strong id="bcFailed" style="color:var(--red);">0</strong></span>
+            <span>Total: <strong id="bcTotal">0</strong></span>
           </div>
+          <div class="progress-track"><div class="progress-fill" id="bcProgressFill"></div></div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
+            <button class="btn btn-ghost btn-sm" onclick="controlBroadcast('pause')">⏸ Pause</button>
+            <button class="btn btn-green btn-sm" onclick="controlBroadcast('resume')">▶ Resume</button>
+            <button class="btn btn-red btn-sm" onclick="controlBroadcast('stop')">⏹ Stop</button>
+          </div>
+          <div id="bcLogsBox" style="background:var(--card-alt); border:1px solid var(--border); border-radius:10px; padding:10px; font-family:monospace; font-size:11px; min-height:70px; white-space:pre-wrap; color:var(--muted);">Idle</div>
+        </div>
 
-          <div class="card">
-            <div class="card-title"><span>Live Broadcast Engine Status</span><span class="badge badge-blue" id="bcStateBadge">IDLE</span></div>
-            <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">
-              <span>Sent: <strong id="bcSent" style="color:var(--green);">0</strong></span>
-              <span>Failed: <strong id="bcFailed" style="color:var(--red);">0</strong></span>
-              <span>Total: <strong id="bcTotal">0</strong></span>
-            </div>
-            <div class="progress-track"><div class="progress-fill" id="bcProgressFill"></div></div>
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px;">
-              <button class="btn btn-ghost btn-sm" onclick="controlBroadcast('pause')">⏸ Pause</button>
-              <button class="btn btn-green btn-sm" onclick="controlBroadcast('resume')">▶ Resume</button>
-              <button class="btn btn-red btn-sm" onclick="controlBroadcast('stop')">⏹ Stop</button>
-            </div>
-            <label class="form-label">Recent Engine Logs</label>
-            <div id="bcLogsBox" style="background:var(--card-alt); border:1px solid var(--border); border-radius:10px; padding:10px; font-family:monospace; font-size:11.5px; min-height:140px; white-space:pre-wrap; color:var(--muted);">Waiting for broadcast job...</div>
+        <div class="card">
+          <div class="card-title"><span>Compose Message</span></div>
+          <div class="form-group">
+            <label class="form-label">Audience</label>
+            <select class="form-input" id="bcAudience" onchange="document.getElementById('bcIdsGroup').style.display = this.value==='SEGMENT'?'block':'none'">
+              <option value="SHEET">All Users (Google Sheet CSV)</option>
+              <option value="SEGMENT">Specific User IDs</option>
+            </select>
           </div>
+          <div class="form-group" id="bcIdsGroup" style="display:none;"><label class="form-label">Target IDs</label><textarea class="form-input" id="bcUserIds" rows="2" placeholder="123456789, 987654321"></textarea></div>
+          <div class="form-group"><label class="form-label">Message (**bold**, _italic_, {username})</label><textarea class="form-input" id="bcText" rows="4" placeholder="Hello {username}!"></textarea></div>
+          <div class="form-group"><label class="form-label">Photo URL (Optional)</label><input type="text" class="form-input" id="bcPhoto" placeholder="https://..." /></div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div class="form-group"><label class="form-label">Button Text</label><input type="text" class="form-input" id="bcBtnText" placeholder="Open App" /></div>
+            <div class="form-group"><label class="form-label">Button URL</label><input type="text" class="form-input" id="bcBtnUrl" placeholder="https://t.me/..." /></div>
+          </div>
+          <button class="btn btn-gold btn-block" onclick="startBroadcast()">🚀 Send Broadcast Now</button>
         </div>
       </section>
 
     </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav">
+      <button class="bnav-item active" onclick="switchPanel('overview', this)">
+        <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        <span>Stats</span>
+      </button>
+      <button class="bnav-item" onclick="switchPanel('pending', this)">
+        <span class="bnav-badge" id="pendingBadge">0</span>
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.2 14.2L11 13V7h1.5v5.2l4.5 2.7-.8 1.3z"/></svg>
+        <span>Pending</span>
+      </button>
+      <button class="bnav-item" onclick="switchPanel('accounts', this)">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+        <span>Accounts</span>
+      </button>
+      <button class="bnav-item" onclick="switchPanel('ledger', this)">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        <span>Ledger</span>
+      </button>
+      <button class="bnav-item" onclick="switchPanel('users', this)">
+        <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        <span>Users</span>
+      </button>
+      <button class="bnav-item" onclick="switchPanel('broadcast', this)">
+        <svg viewBox="0 0 24 24"><path d="M18 11v2h4v-2h-4zm-2 6.61c.96.71 2.21 1.65 3.2 2.39.4-.53.8-1.07 1.2-1.6-.99-.74-2.24-1.68-3.2-2.4-.4.54-.8 1.08-1.2 1.61zM20.4 5.6c-.4-.53-.8-1.07-1.2-1.6-.99.74-2.24 1.68-3.2 2.4.4.53.8 1.07 1.2 1.6.96-.72 2.21-1.65 3.2-2.4zM4 9c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2h1v4h2v-4h1l5 3V6L8 9H4z"/></svg>
+        <span>Send All</span>
+      </button>
+    </nav>
   </div>
 
-  <!-- ═══════════════ REJECT WITH REASON MODAL (GLOBAL FOR ALL TYPES) ═══════════════ -->
+  <!-- ═══════════════ REJECT WITH REASON SHEET ═══════════════ -->
   <div class="modal-overlay" id="rejectReasonModal">
     <div class="modal-box">
       <h3 style="font-size:16px; font-weight:800; color:var(--red); margin-bottom:6px;" id="rejModalTitle">Reject Item</h3>
-      <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">Select or type the exact reason. This message will be saved and sent directly to the user in Telegram:</p>
-      <input type="hidden" id="rejType" />
-      <input type="hidden" id="rejTargetId" />
+      <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">Message sent directly to user in Telegram:</p>
+      <input type="hidden" id="rejType" /><input type="hidden" id="rejTargetId" />
       <div class="chips-row">
-        <button class="chip-btn" onclick="setRejectReason('Fake receipt or payment not received.')">Fake / Not Received</button>
-        <button class="chip-btn" onclick="setRejectReason('Blurry or unclear ID/selfie photo. Please resubmit.')">Blurry Photo</button>
-        <button class="chip-btn" onclick="setRejectReason('Amount mismatch or incorrect account details.')">Wrong Amount</button>
-        <button class="chip-btn" onclick="setRejectReason('National ID does not match selfie.')">ID Mismatch</button>
+        <button class="chip-btn" onclick="setRejectReason('Fake receipt or payment not received.')">Fake / Not Paid</button>
+        <button class="chip-btn" onclick="setRejectReason('Blurry photo. Upload a clearer image.')">Blurry Photo</button>
+        <button class="chip-btn" onclick="setRejectReason('Amount mismatch or wrong account.')">Wrong Amount</button>
+        <button class="chip-btn" onclick="setRejectReason('ID does not match selfie.')">ID Mismatch</button>
       </div>
-      <div class="form-group">
-        <label class="form-label">Rejection Message (English or አማርኛ)</label>
-        <textarea class="form-input" id="rejReasonInput" rows="3" placeholder="Enter reason for rejection..."></textarea>
-      </div>
+      <div class="form-group"><textarea class="form-input" id="rejReasonInput" rows="3" placeholder="Write rejection reason (English / አማርኛ)..."></textarea></div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
         <button class="btn btn-ghost" onclick="closeModal('rejectReasonModal')">Cancel</button>
-        <button class="btn btn-red" id="rejConfirmBtn" onclick="confirmRejectAction()">Reject &amp; Notify User</button>
+        <button class="btn btn-red" id="rejConfirmBtn" onclick="confirmRejectAction()">Reject &amp; Notify</button>
       </div>
     </div>
   </div>
 
-  <!-- ═══════════════ ADD / EDIT ACCOUNT MODAL ═══════════════ -->
+  <!-- ═══════════════ ADD / EDIT ACCOUNT SHEET ═══════════════ -->
   <div class="modal-overlay" id="accountFormModal">
     <div class="modal-box">
-      <h3 style="font-size:16px; font-weight:800; margin-bottom:12px;" id="accModalTitle">Add Payment Account</h3>
+      <h3 style="font-size:16px; font-weight:800; margin-bottom:12px;" id="accModalTitle">Add Account</h3>
       <input type="hidden" id="accEditId" />
-
       <div id="accCreateOnlyFields">
-        <div class="form-group">
-          <label class="form-label">Unique Slug (e.g. usdt_trc20, cbe_2)</label>
-          <input type="text" class="form-input" id="accSlugInput" placeholder="e.g. usdt_trc20" />
-        </div>
+        <div class="form-group"><label class="form-label">Unique Slug (e.g. usdt_trc20)</label><input type="text" class="form-input" id="accSlugInput" placeholder="usdt_trc20" /></div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-          <div class="form-group">
-            <label class="form-label">Pool Target</label>
-            <select class="form-input" id="accPoolSelect">
-              <option value="USD_NBIYU">USD_NBIYU (Dollar)</option>
-              <option value="ETB_OWNER">ETB_OWNER (Birr)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Tab Group</label>
-            <select class="form-input" id="accGroupSelect">
-              <option value="CRYPTO">CRYPTO</option>
-              <option value="ETB">ETB</option>
-            </select>
-          </div>
+          <div class="form-group"><label class="form-label">Pool</label><select class="form-input" id="accPoolSelect"><option value="USD_NBIYU">USD_NBIYU</option><option value="ETB_OWNER">ETB_OWNER</option></select></div>
+          <div class="form-group"><label class="form-label">Group</label><select class="form-input" id="accGroupSelect"><option value="CRYPTO">CRYPTO</option><option value="ETB">ETB</option></select></div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Network Type</label>
-          <select class="form-input" id="accNetworkSelect">
-            <option value="EXCHANGE_ID">EXCHANGE_ID (Binance / OKX / Bybit)</option>
-            <option value="ONCHAIN_BSC">ONCHAIN_BSC (BEP-20 Auto-Verify)</option>
-            <option value="ONCHAIN_TRON">ONCHAIN_TRON (TRC-20 Auto-Verify)</option>
-            <option value="ONCHAIN_BTC">ONCHAIN_BTC</option>
-            <option value="ONCHAIN_TON">ONCHAIN_TON</option>
-            <option value="ETB_BANK">ETB_BANK (CBE)</option>
-            <option value="ETB_TELE">ETB_TELE (Telebirr)</option>
-          </select>
-        </div>
+        <div class="form-group"><label class="form-label">Network Type</label><select class="form-input" id="accNetworkSelect"><option value="EXCHANGE_ID">EXCHANGE_ID</option><option value="ONCHAIN_BSC">ONCHAIN_BSC</option><option value="ONCHAIN_TRON">ONCHAIN_TRON</option><option value="ONCHAIN_BTC">ONCHAIN_BTC</option><option value="ONCHAIN_TON">ONCHAIN_TON</option><option value="ETB_BANK">ETB_BANK</option><option value="ETB_TELE">ETB_TELE</option></select></div>
       </div>
-
-      <div class="form-group">
-        <label class="form-label">Display Name (Label)</label>
-        <input type="text" class="form-input" id="accLabelInput" placeholder="e.g. USDT (TRC-20)" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Account Number / Pay ID / Wallet Address</label>
-        <input type="text" class="form-input" id="accValueInput" placeholder="Account, UID, or Address" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Account Holder / Note</label>
-        <input type="text" class="form-input" id="accHolderInput" placeholder="e.g. Nbiyu (TRC20)" />
-      </div>
-
+      <div class="form-group"><label class="form-label">Display Name</label><input type="text" class="form-input" id="accLabelInput" /></div>
+      <div class="form-group"><label class="form-label">Account / Pay ID / Wallet Address</label><input type="text" class="form-input" id="accValueInput" /></div>
+      <div class="form-group"><label class="form-label">Holder / Label Note</label><input type="text" class="form-input" id="accHolderInput" /></div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
         <button class="btn btn-ghost" onclick="closeModal('accountFormModal')">Cancel</button>
         <button class="btn btn-gold" onclick="saveAccountForm()">Save Account</button>
@@ -517,21 +440,15 @@
     </div>
   </div>
 
-  <!-- ═══════════════ ADJUST BALANCE MODAL ═══════════════ -->
+  <!-- ═══════════════ ADJUST BALANCE SHEET ═══════════════ -->
   <div class="modal-overlay" id="adjustBalModal">
     <div class="modal-box">
-      <h3 style="font-size:16px; font-weight:800; margin-bottom:10px;">Adjust User Balance</h3>
-      <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Target User: <strong id="adjTargetLabel">--</strong></div>
+      <h3 style="font-size:16px; font-weight:800; margin-bottom:6px;">Adjust User Balance</h3>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:12px;" id="adjTargetLabel">--</div>
       <input type="hidden" id="adjTargetId" />
-      <div class="form-group">
-        <label class="form-label">Action</label>
-        <select class="form-input" id="adjAction">
-          <option value="ADD">Add (+ Credit USD)</option>
-          <option value="DEDUCT">Deduct (- Debit USD)</option>
-        </select>
-      </div>
+      <div class="form-group"><label class="form-label">Action</label><select class="form-input" id="adjAction"><option value="ADD">Add (+ USD)</option><option value="DEDUCT">Deduct (- USD)</option></select></div>
       <div class="form-group"><label class="form-label">Amount (USD)</label><input type="number" class="form-input" id="adjAmount" step="0.01" placeholder="10.00" /></div>
-      <div class="form-group"><label class="form-label">Reason / Note</label><input type="text" class="form-input" id="adjReason" placeholder="Manual adjustment" /></div>
+      <div class="form-group"><label class="form-label">Reason</label><input type="text" class="form-input" id="adjReason" placeholder="Manual adjustment" /></div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
         <button class="btn btn-ghost" onclick="closeModal('adjustBalModal')">Cancel</button>
         <button class="btn btn-gold" onclick="submitAdjustBalance()">Confirm</button>
@@ -539,15 +456,12 @@
     </div>
   </div>
 
-  <!-- ═══════════════ PAYOUT REF MODAL ═══════════════ -->
+  <!-- ═══════════════ PAYOUT REF SHEET ═══════════════ -->
   <div class="modal-overlay" id="payoutModal">
     <div class="modal-box">
       <h3 style="font-size:16px; font-weight:800; margin-bottom:10px;">Mark Withdrawal Paid</h3>
       <input type="hidden" id="payoutWithdrawId" />
-      <div class="form-group">
-        <label class="form-label">Bank / TxHash Payout Reference (Saved in Ledger)</label>
-        <input type="text" class="form-input" id="payoutRefInput" placeholder="e.g. FT26062... or 0x..." />
-      </div>
+      <div class="form-group"><label class="form-label">Payout Reference (Bank FT / TxHash)</label><input type="text" class="form-input" id="payoutRefInput" placeholder="e.g. FT26062... or 0x..." /></div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
         <button class="btn btn-ghost" onclick="closeModal('payoutModal')">Cancel</button>
         <button class="btn btn-green" onclick="confirmApproveWithdrawal()">Mark Paid</button>
@@ -558,36 +472,33 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    const DEFAULT_SERVER = window.location.origin.includes('aletcloud.com')
-      ? window.location.origin
-      : 'https://swap-broadcast-server.app.aletcloud.com';
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
 
+    const DEFAULT_SERVER = window.location.origin.includes('aletcloud.com') ? window.location.origin : 'https://swap-broadcast-server.app.aletcloud.com';
     let API_BASE = localStorage.getItem('adm_server_url') || DEFAULT_SERVER;
     let ADMIN_KEY = localStorage.getItem('adm_secret_key') || '';
-
     document.getElementById('loginServerUrl').value = API_BASE;
     document.getElementById('loginAdminKey').value = ADMIN_KEY;
 
-    let ledgerData = [];
-    let accountsCache = [];
-    let usersCache = [];
-    let bcPollTimer = null;
+    let ledgerData = [], accountsCache = [], usersCache = [], bcPollTimer = null;
 
-    function esc(str) {
-      if (str === null || str === undefined) return '';
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    function esc(s) {
+      if (s === null || s === undefined) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
     function toggleTheme() {
       const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', cur);
-      localStorage.setItem('adm_theme', cur);
+      document.documentElement.setAttribute('data-theme', cur); localStorage.setItem('adm_theme', cur);
     }
     if (localStorage.getItem('adm_theme')) document.documentElement.setAttribute('data-theme', localStorage.getItem('adm_theme'));
 
-    async function apiFetch(endpoint, options = {}) {
-      const headers = { 'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY, ...(options.headers || {}) };
-      const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+    async function apiFetch(ep, opts = {}) {
+      const res = await fetch(`${API_BASE}${ep}`, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY, ...(opts.headers || {}) }
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       return data;
@@ -597,512 +508,293 @@
       API_BASE = document.getElementById('loginServerUrl').value.trim().replace(/\/+$/, '');
       ADMIN_KEY = document.getElementById('loginAdminKey').value.trim();
       if (!API_BASE || !ADMIN_KEY) return showToast('Enter Server URL and Admin Key', 'error');
-
-      const btn = document.getElementById('loginBtn');
-      btn.disabled = true;
-      btn.innerText = 'Verifying...';
+      const btn = document.getElementById('loginBtn'); btn.disabled = true; btn.innerText = 'Verifying...';
       try {
         await apiFetch('/api/admin/analytics');
-        localStorage.setItem('adm_server_url', API_BASE);
-        localStorage.setItem('adm_secret_key', ADMIN_KEY);
+        localStorage.setItem('adm_server_url', API_BASE); localStorage.setItem('adm_secret_key', ADMIN_KEY);
         document.getElementById('loginView').style.display = 'none';
         document.getElementById('dashView').style.display = 'flex';
-        refreshAllData();
-        pollBroadcastStatus();
-      } catch (err) {
-        showToast(err.message, 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerText = 'Unlock Dashboard';
-      }
+        refreshAllData(); pollBroadcastStatus();
+      } catch (e) { showToast(e.message, 'error'); } finally { btn.disabled = false; btn.innerText = 'Unlock Dashboard'; }
     }
 
     function logout() { localStorage.removeItem('adm_secret_key'); location.reload(); }
-
-    function switchPanel(name, tabEl) {
+    function switchPanel(name, btnEl) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
       document.getElementById(`panel-${name}`).classList.add('active');
-      tabEl.classList.add('active');
+      btnEl.classList.add('active');
+      window.scrollTo(0, 0);
     }
 
     async function refreshAllData() {
       try {
         await Promise.all([loadAnalytics(), loadPending(), loadAccounts(), loadLedger(), loadUsers()]);
-        showToast('Synced with Neon DB', 'success');
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
+        showToast('Synced', 'success');
+      } catch (e) { showToast(e.message, 'error'); }
     }
 
-    // ═══════════════ 1. ANALYTICS & RATE ═══════════════
+    // 1. ANALYTICS
     async function loadAnalytics() {
       const d = await apiFetch('/api/admin/analytics');
-      document.getElementById('kpiEtbNet').innerText = `${Number(d.etb_owner_pool.net_held_etb).toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB`;
+      document.getElementById('kpiEtbNet').innerText = `${Number(d.etb_owner_pool.net_held_etb).toLocaleString('en-US',{minimumFractionDigits:2})} ETB`;
       document.getElementById('kpiEtbIn').innerText = `${Number(d.etb_owner_pool.total_in_etb).toLocaleString()} ETB`;
       document.getElementById('kpiEtbOut').innerText = `${Number(d.etb_owner_pool.total_out_etb).toLocaleString()} ETB`;
-
-      document.getElementById('kpiNbiyuNet').innerText = `$${Number(d.nbiyu_dollar_pool.net_held_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`;
+      document.getElementById('kpiNbiyuNet').innerText = `$${Number(d.nbiyu_dollar_pool.net_held_usd).toLocaleString('en-US',{minimumFractionDigits:2})} USD`;
       document.getElementById('kpiNbiyuIn').innerText = `$${Number(d.nbiyu_dollar_pool.total_in_usd).toFixed(2)}`;
       document.getElementById('kpiNbiyuOut').innerText = `$${Number(d.nbiyu_dollar_pool.total_out_usd).toFixed(2)}`;
-
-      document.getElementById('kpiUserVault').innerText = `$${Number(d.users.total_user_vault_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`;
+      document.getElementById('kpiUserVault').innerText = `$${Number(d.users.total_user_vault_usd).toLocaleString('en-US',{minimumFractionDigits:2})} USD`;
       document.getElementById('kpiTotalUsers').innerText = d.users.total_users;
       document.getElementById('kpiVerifiedUsers').innerText = d.users.verified_users;
       document.getElementById('kpiBannedUsers').innerText = d.users.banned_users;
       document.getElementById('adminFxInput').value = d.fx_rate;
 
-      const tbody = document.getElementById('channelBreakdownBody');
       const chans = d.nbiyu_dollar_pool.by_channel || [];
-      if (chans.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="empty-box">No dollar ledger entries yet.</td></tr>`;
-      } else {
-        tbody.innerHTML = chans.map(c => {
-          const inU = parseFloat(c.in_usd), outU = parseFloat(c.out_usd);
-          return `
-            <tr>
-              <td><strong>${esc(c.channel)}</strong></td>
-              <td style="color:var(--green); font-weight:700;">$${inU.toFixed(2)}</td>
-              <td style="color:var(--red); font-weight:700;">$${outU.toFixed(2)}</td>
-              <td><strong>$${(inU - outU).toFixed(2)}</strong></td>
-              <td>${c.tx_count}</td>
-            </tr>
-          `;
-        }).join('');
-      }
+      document.getElementById('channelBreakdownList').innerHTML = chans.length === 0 ? `<div class="empty-box">No dollar ledger entries yet.</div>` : chans.map(c => {
+        const inU = parseFloat(c.in_usd), outU = parseFloat(c.out_usd);
+        return `<div class="m-item"><div class="m-item-top"><strong>${esc(c.channel)}</strong><span class="badge badge-purple">${c.tx_count} TXs</span></div><div class="m-row"><span>IN: <strong style="color:var(--green);">+$${inU.toFixed(2)}</strong></span><span>OUT: <strong style="color:var(--red);">-$${outU.toFixed(2)}</strong></span><span>Net: <strong>$${(inU-outU).toFixed(2)}</strong></span></div></div>`;
+      }).join('');
     }
 
     async function updateFxRate() {
       const rate = parseFloat(document.getElementById('adminFxInput').value);
       if (!rate || rate <= 0) return showToast('Invalid rate', 'error');
-      try {
-        const d = await apiFetch('/api/admin/set-rate', { method: 'POST', body: JSON.stringify({ rate }) });
-        showToast(d.message, 'success');
-      } catch (err) { showToast(err.message, 'error'); }
+      try { const d = await apiFetch('/api/admin/set-rate', { method: 'POST', body: JSON.stringify({ rate }) }); showToast(d.message, 'success'); } catch (e) { showToast(e.message, 'error'); }
     }
 
-    // ═══════════════ 2. PENDING QUEUES & REJECTION MODAL ═══════════════
+    // 2. PENDING QUEUES
+    function filterPendingSection(key, btn) {
+      document.querySelectorAll('.sub-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      ['dep','store','with','kyc','p2p','spay'].forEach(k => {
+        document.getElementById(`sec-${k}`).style.display = (key === 'all' || key === k) ? 'block' : 'none';
+      });
+    }
+
     async function loadPending() {
       const d = await apiFetch('/api/admin/pending');
-      const deps = d.pending_deposits || [];
-      const stores = d.pending_store_orders || [];
-      const withs = d.pending_withdrawals || [];
-      const kycs = d.pending_kycs || [];
-      const p2ps = d.active_p2p_trades || [];
-      const spays = d.pending_seller_payouts || [];
+      const deps = d.pending_deposits||[], stores = d.pending_store_orders||[], withs = d.pending_withdrawals||[], kycs = d.pending_kycs||[], p2ps = d.active_p2p_trades||[], spays = d.pending_seller_payouts||[];
+      const tot = deps.length + stores.length + withs.length + kycs.length + p2ps.length + spays.length;
 
+      document.getElementById('cntAll').innerText = tot;
       document.getElementById('cntDep').innerText = deps.length;
       document.getElementById('cntStore').innerText = stores.length;
       document.getElementById('cntWith').innerText = withs.length;
       document.getElementById('cntKyc').innerText = kycs.length;
       document.getElementById('cntP2p').innerText = p2ps.length;
       document.getElementById('cntSellerPay').innerText = spays.length;
-      document.getElementById('pendingBadge').innerText = deps.length + stores.length + withs.length + kycs.length + p2ps.length + spays.length;
 
-      document.getElementById('pendingDepositsList').innerHTML = deps.length === 0 ? `<div class="empty-box">No pending deposits.</div>` : deps.map(x => `
-        <div class="queue-item">
-          <div class="queue-meta">
-            <div><span class="badge ${x.pool_target === 'USD_NBIYU' ? 'badge-purple' : 'badge-green'}">${esc(x.pool_target)}</span> <strong>#${x.id}</strong> · User <code>${esc(x.telegram_id)}</code></div>
-            <div><strong>$${Number(x.amount_usd).toFixed(2)} USD</strong> (${Number(x.amount)} ${esc(x.currency)}) via <strong>${esc(x.payment_method)}</strong></div>
-            <div>Ref: <span class="mono" onclick="copyVal('${esc(x.transaction_ref)}')">${esc(x.transaction_ref)}</span> · <small style="color:var(--muted);">${esc(x.eat_time || '')}</small></div>
-          </div>
-          <div class="queue-actions">
-            <button class="btn btn-green btn-sm" onclick="approveDeposit(${x.id}, this)">✔ Approve</button>
-            <button class="btn btn-red btn-sm" onclick="openRejectModal('DEPOSIT', '${x.id}')">✕ Reject</button>
-          </div>
-        </div>
-      `).join('');
+      const pb = document.getElementById('pendingBadge');
+      pb.innerText = tot; pb.style.display = tot > 0 ? 'inline-block' : 'none';
 
-      document.getElementById('pendingStoreList').innerHTML = stores.length === 0 ? `<div class="empty-box">No pending store orders.</div>` : stores.map(x => `
-        <div class="queue-item">
-          <div class="queue-meta">
-            <div><span class="badge badge-purple">${esc(x.order_code)}</span> <strong>${esc(x.product_name)}</strong> · User <code>${esc(x.telegram_id)}</code></div>
-            <div>Price: <strong>$${Number(x.price_usd).toFixed(2)}</strong> (${Number(x.price_etb)} ETB) · Via: ${esc(x.payment_method)}</div>
-            <div>Ref: <span class="mono" onclick="copyVal('${esc(x.transaction_ref)}')">${esc(x.transaction_ref)}</span> ${x.service_details ? `· Info: <strong>${esc(x.service_details)}</strong>` : ''}</div>
-          </div>
-          <div class="queue-actions">
-            <button class="btn btn-green btn-sm" onclick="approveStoreOrder(${x.id}, this)">✔ Deliver</button>
-            <button class="btn btn-red btn-sm" onclick="openRejectModal('STORE', '${x.id}')">✕ Reject</button>
-          </div>
-        </div>
-      `).join('');
+      document.getElementById('pendingDepositsList').innerHTML = deps.length===0 ? `<div class="empty-box">No pending deposits.</div>` : deps.map(x => `
+        <div class="m-item">
+          <div class="m-item-top"><strong>#${x.id} · <code>${esc(x.telegram_id)}</code></strong><span class="badge ${x.pool_target==='USD_NBIYU'?'badge-purple':'badge-green'}">${esc(x.pool_target)}</span></div>
+          <div><strong>$${Number(x.amount_usd).toFixed(2)} USD</strong> (${Number(x.amount)} ${esc(x.currency)}) · <strong>${esc(x.payment_method)}</strong></div>
+          <div>Ref: <span class="mono" onclick="copyVal('${esc(x.transaction_ref)}')">${esc(x.transaction_ref)}</span></div>
+          <div style="font-size:11px; color:var(--muted);">${esc(x.eat_time||'')}</div>
+          <div class="m-item-actions"><button class="btn btn-green btn-sm" onclick="approveDeposit(${x.id},this)">✔ Approve</button><button class="btn btn-red btn-sm" onclick="openRejectModal('DEPOSIT','${x.id}')">✕ Reject</button></div>
+        </div>`).join('');
 
-      document.getElementById('pendingWithdrawalsList').innerHTML = withs.length === 0 ? `<div class="empty-box">No pending withdrawals.</div>` : withs.map(x => `
-        <div class="queue-item">
-          <div class="queue-meta">
-            <div><span class="badge ${x.pool_source === 'USD_NBIYU' ? 'badge-purple' : 'badge-gold'}">${esc(x.pool_source)}</span> <strong>#${x.id}</strong> · User <code>${esc(x.telegram_id)}</code></div>
-            <div><strong>$${Number(x.amount_usd).toFixed(2)} USD</strong> (${Number(x.amount_etb).toLocaleString()} ETB)</div>
-            <div>To <strong>${esc(x.payment_method)}</strong>: <span class="mono" onclick="copyVal('${esc(x.account_number)}')">${esc(x.account_number)}</span></div>
-          </div>
-          <div class="queue-actions">
-            <button class="btn btn-green btn-sm" onclick="openPayoutModal(${x.id})">💸 Mark Paid</button>
-            <button class="btn btn-red btn-sm" onclick="openRejectModal('WITHDRAW', '${x.id}')">↩ Reject</button>
-          </div>
-        </div>
-      `).join('');
+      document.getElementById('pendingStoreList').innerHTML = stores.length===0 ? `<div class="empty-box">No pending store orders.</div>` : stores.map(x => `
+        <div class="m-item">
+          <div class="m-item-top"><strong>${esc(x.order_code)}</strong><span class="badge badge-purple">$${Number(x.price_usd).toFixed(2)}</span></div>
+          <div><strong>${esc(x.product_name)}</strong> · User <code>${esc(x.telegram_id)}</code></div>
+          <div>Via: ${esc(x.payment_method)} · Ref: <span class="mono" onclick="copyVal('${esc(x.transaction_ref)}')">${esc(x.transaction_ref)}</span></div>
+          ${x.service_details?`<div style="font-size:11.5px; color:var(--blue);">Info: ${esc(x.service_details)}</div>`:''}
+          <div class="m-item-actions"><button class="btn btn-green btn-sm" onclick="approveStoreOrder(${x.id},this)">✔ Deliver</button><button class="btn btn-red btn-sm" onclick="openRejectModal('STORE','${x.id}')">✕ Reject</button></div>
+        </div>`).join('');
 
-      document.getElementById('pendingKycsList').innerHTML = kycs.length === 0 ? `<div class="empty-box">No pending KYC requests.</div>` : kycs.map(x => `
-        <div class="queue-item">
-          <div class="queue-meta">
-            <div><strong>${esc(x.kyc_full_name || x.first_name)}</strong> (${esc(x.username ? '@' + x.username : x.telegram_id)})</div>
-            <div>Phone: <strong>${esc(x.phone_number)}</strong> · National ID: <span class="mono">${esc(x.national_id)}</span></div>
-          </div>
-          <div class="queue-actions">
-            <button class="btn btn-green btn-sm" onclick="approveKyc('${esc(x.telegram_id)}', this)">✔ Approve</button>
-            <button class="btn btn-red btn-sm" onclick="openRejectModal('KYC', '${esc(x.telegram_id)}')">✕ Reject</button>
-          </div>
-        </div>
-      `).join('');
+      document.getElementById('pendingWithdrawalsList').innerHTML = withs.length===0 ? `<div class="empty-box">No pending withdrawals.</div>` : withs.map(x => `
+        <div class="m-item">
+          <div class="m-item-top"><strong>#${x.id} · <code>${esc(x.telegram_id)}</code></strong><span class="badge ${x.pool_source==='USD_NBIYU'?'badge-purple':'badge-gold'}">${esc(x.pool_source)}</span></div>
+          <div><strong>$${Number(x.amount_usd).toFixed(2)} USD</strong> (${Number(x.amount_etb).toLocaleString()} ETB)</div>
+          <div>To <strong>${esc(x.payment_method)}</strong>: <span class="mono" onclick="copyVal('${esc(x.account_number)}')">${esc(x.account_number)}</span></div>
+          <div class="m-item-actions"><button class="btn btn-green btn-sm" onclick="openPayoutModal(${x.id})">💸 Mark Paid</button><button class="btn btn-red btn-sm" onclick="openRejectModal('WITHDRAW','${x.id}')">↩ Reject</button></div>
+        </div>`).join('');
 
-      document.getElementById('activeP2pTradesList').innerHTML = p2ps.length === 0 ? `<div class="empty-box">No active P2P trades.</div>` : p2ps.map(x => `
-        <div class="queue-item">
-          <div class="queue-meta">
-            <div><strong>${esc(x.trade_code)}</strong> <span class="badge badge-gold">${esc(x.status)}</span></div>
-            <div>Buyer: <code>${esc(x.buyer_id)}</code> · Seller: <code>${esc(x.seller_id)}</code></div>
-            <div>Net: <strong>$${Number(x.net_usd || x.amount_usd).toFixed(2)} USDT</strong> (${Number(x.amount_etb).toLocaleString()} ETB) · Ref: <span class="mono">${esc(x.payment_ref || 'None')}</span></div>
-          </div>
-          <div class="queue-actions">
-            <button class="btn btn-purple btn-sm" onclick="releaseP2PTrade('${esc(x.trade_code)}', this)">🔓 Release</button>
-            <button class="btn btn-red btn-sm" onclick="openRejectModal('P2P', '${esc(x.trade_code)}')">✕ Reject</button>
-          </div>
-        </div>
-      `).join('');
+      document.getElementById('pendingKycsList').innerHTML = kycs.length===0 ? `<div class="empty-box">No pending KYCs.</div>` : kycs.map(x => `
+        <div class="m-item">
+          <div class="m-item-top"><strong>${esc(x.kyc_full_name||x.first_name)}</strong><span class="badge badge-blue">${esc(x.username?'@'+x.username:x.telegram_id)}</span></div>
+          <div>Phone: <strong>${esc(x.phone_number)}</strong> · ID: <span class="mono">${esc(x.national_id)}</span></div>
+          <div class="m-item-actions"><button class="btn btn-green btn-sm" onclick="approveKyc('${esc(x.telegram_id)}',this)">✔ Approve</button><button class="btn btn-red btn-sm" onclick="openRejectModal('KYC','${esc(x.telegram_id)}')">✕ Reject</button></div>
+        </div>`).join('');
 
-      document.getElementById('pendingSellerPayoutsList').innerHTML = spays.length === 0 ? `<div class="empty-box">No pending P2P seller payouts.</div>` : spays.map(x => `
-        <div class="queue-item">
-          <div class="queue-meta">
-            <div><strong>${esc(x.trade_code)}</strong> · Seller: <code>${esc(x.seller_id)}</code></div>
-            <div>Net Payout (after 3% fee): <strong style="color:var(--green);">${Number(x.seller_payout_etb).toLocaleString()} ETB</strong></div>
-            <div>Send to: <span class="mono" onclick="copyVal('${esc(x.seller_payout_account)}')">${esc(x.seller_payout_account)}</span></div>
-          </div>
-          <div class="queue-actions">
-            <button class="btn btn-green btn-sm" onclick="markSellerPaid('${esc(x.trade_code)}', this)">✔ Mark Seller Paid</button>
-          </div>
-        </div>
-      `).join('');
+      document.getElementById('activeP2pTradesList').innerHTML = p2ps.length===0 ? `<div class="empty-box">No active P2P trades.</div>` : p2ps.map(x => `
+        <div class="m-item">
+          <div class="m-item-top"><strong>${esc(x.trade_code)}</strong><span class="badge badge-gold">${esc(x.status)}</span></div>
+          <div>Buyer: <code>${esc(x.buyer_id)}</code> · Seller: <code>${esc(x.seller_id)}</code></div>
+          <div>Net: <strong>$${Number(x.net_usd||x.amount_usd).toFixed(2)} USDT</strong> (${Number(x.amount_etb).toLocaleString()} ETB)</div>
+          <div>Mode: <span class="badge badge-blue">${esc(x.receive_mode||'VAULT')}</span> (${esc(x.receiving_id||'')}) · Ref: <span class="mono">${esc(x.payment_ref||'None')}</span></div>
+          <div class="m-item-actions"><button class="btn btn-purple btn-sm" onclick="releaseP2PTrade('${esc(x.trade_code)}',this)">🔓 Release</button><button class="btn btn-red btn-sm" onclick="openRejectModal('P2P','${esc(x.trade_code)}')">✕ Reject</button></div>
+        </div>`).join('');
+
+      document.getElementById('pendingSellerPayoutsList').innerHTML = spays.length===0 ? `<div class="empty-box">No pending seller payouts.</div>` : spays.map(x => `
+        <div class="m-item">
+          <div class="m-item-top"><strong>${esc(x.trade_code)}</strong><span class="badge badge-green">PAY SELLER</span></div>
+          <div>Seller: <code>${esc(x.seller_id)}</code> · Payout: <strong style="color:var(--green);">${Number(x.seller_payout_etb).toLocaleString()} ETB</strong></div>
+          <div>Account: <span class="mono" onclick="copyVal('${esc(x.seller_payout_account)}')">${esc(x.seller_payout_account)}</span></div>
+          <div class="m-item-actions"><button class="btn btn-green btn-sm" onclick="markSellerPaid('${esc(x.trade_code)}',this)">✔ Mark Seller Paid</button></div>
+        </div>`).join('');
     }
 
-    // Rejection Modal (For Deposit, Store, Withdraw, KYC, P2P)
-    function openRejectModal(type, targetId) {
-      document.getElementById('rejType').value = type;
-      document.getElementById('rejTargetId').value = targetId;
-      document.getElementById('rejModalTitle').innerText = `Reject ${type} #${targetId}`;
-      document.getElementById('rejReasonInput').value = '';
-      document.getElementById('rejectReasonModal').classList.add('open');
-    }
-    function setRejectReason(txt) { document.getElementById('rejReasonInput').value = txt; }
-
+    function openRejectModal(type, id) { document.getElementById('rejType').value=type; document.getElementById('rejTargetId').value=id; document.getElementById('rejModalTitle').innerText=`Reject ${type} #${id}`; document.getElementById('rejReasonInput').value=''; document.getElementById('rejectReasonModal').classList.add('open'); }
+    function setRejectReason(t) { document.getElementById('rejReasonInput').value = t; }
     async function confirmRejectAction() {
-      const type = document.getElementById('rejType').value;
-      const id = document.getElementById('rejTargetId').value;
-      const reason = document.getElementById('rejReasonInput').value.trim();
-      if (!reason) return showToast('Please enter a rejection reason', 'error');
-
-      const btn = document.getElementById('rejConfirmBtn');
-      btn.disabled = true;
+      const type=document.getElementById('rejType').value, id=document.getElementById('rejTargetId').value, reason=document.getElementById('rejReasonInput').value.trim();
+      if (!reason) return showToast('Enter reason', 'error');
+      const btn = document.getElementById('rejConfirmBtn'); btn.disabled = true;
       try {
-        let ep = '', body = {};
-        if (type === 'DEPOSIT') { ep = '/api/admin/reject-deposit'; body = { deposit_id: parseInt(id), reason }; }
-        else if (type === 'STORE') { ep = '/api/admin/reject-store'; body = { order_id: parseInt(id), reason }; }
-        else if (type === 'WITHDRAW') { ep = '/api/admin/reject-withdrawal'; body = { withdrawal_id: parseInt(id), reason }; }
-        else if (type === 'KYC') { ep = '/api/admin/kyc/review'; body = { telegram_id: id, decision: 'Rejected', reason }; }
-        else if (type === 'P2P') { ep = '/api/admin/p2p/reject'; body = { trade_code: id, reason }; }
-
+        let ep='', body={};
+        if (type==='DEPOSIT'){ep='/api/admin/reject-deposit'; body={deposit_id:parseInt(id),reason};}
+        else if (type==='STORE'){ep='/api/admin/reject-store'; body={order_id:parseInt(id),reason};}
+        else if (type==='WITHDRAW'){ep='/api/admin/reject-withdrawal'; body={withdrawal_id:parseInt(id),reason};}
+        else if (type==='KYC'){ep='/api/admin/kyc/review'; body={telegram_id:id,decision:'Rejected',reason};}
+        else if (type==='P2P'){ep='/api/admin/p2p/reject'; body={trade_code:id,reason};}
         const d = await apiFetch(ep, { method: 'POST', body: JSON.stringify(body) });
-        closeModal('rejectReasonModal');
-        showToast(d.message, 'success');
-        refreshAllData();
-      } catch (err) {
-        showToast(err.message, 'error');
-      } finally {
-        btn.disabled = false;
-      }
+        closeModal('rejectReasonModal'); showToast(d.message, 'success'); refreshAllData();
+      } catch (e) { showToast(e.message, 'error'); } finally { btn.disabled = false; }
     }
 
-    async function approveDeposit(id, btn) {
-      btn.disabled = true;
-      try { const d = await apiFetch('/api/admin/approve-deposit', { method: 'POST', body: JSON.stringify({ deposit_id: id }) }); showToast(d.message, 'success'); refreshAllData(); }
-      catch (err) { btn.disabled = false; showToast(err.message, 'error'); }
-    }
-    async function approveStoreOrder(id, btn) {
-      btn.disabled = true;
-      try { const d = await apiFetch('/api/admin/approve-store', { method: 'POST', body: JSON.stringify({ order_id: id }) }); showToast(d.message, 'success'); refreshAllData(); }
-      catch (err) { btn.disabled = false; showToast(err.message, 'error'); }
-    }
-    function openPayoutModal(id) {
-      document.getElementById('payoutWithdrawId').value = id;
-      document.getElementById('payoutRefInput').value = '';
-      document.getElementById('payoutModal').classList.add('open');
-    }
-    async function confirmApproveWithdrawal() {
-      const id = document.getElementById('payoutWithdrawId').value;
-      const ref = document.getElementById('payoutRefInput').value.trim();
-      try {
-        const d = await apiFetch('/api/admin/approve-withdrawal', { method: 'POST', body: JSON.stringify({ withdrawal_id: id, payout_ref: ref }) });
-        closeModal('payoutModal'); showToast(d.message, 'success'); refreshAllData();
-      } catch (err) { showToast(err.message, 'error'); }
-    }
-    async function approveKyc(tgId, btn) {
-      btn.disabled = true;
-      try { const d = await apiFetch('/api/admin/kyc/review', { method: 'POST', body: JSON.stringify({ telegram_id: tgId, decision: 'Approved' }) }); showToast(d.message, 'success'); refreshAllData(); }
-      catch (err) { btn.disabled = false; showToast(err.message, 'error'); }
-    }
-    async function releaseP2PTrade(code, btn) {
-      btn.disabled = true;
-      try { const d = await apiFetch('/api/admin/p2p/release', { method: 'POST', body: JSON.stringify({ trade_code: code }) }); showToast(d.message, 'success'); refreshAllData(); }
-      catch (err) { btn.disabled = false; showToast(err.message, 'error'); }
-    }
-    async function markSellerPaid(code, btn) {
-      btn.disabled = true;
-      try { const d = await apiFetch('/api/admin/p2p/mark-seller-paid', { method: 'POST', body: JSON.stringify({ trade_code: code }) }); showToast(d.message, 'success'); refreshAllData(); }
-      catch (err) { btn.disabled = false; showToast(err.message, 'error'); }
-    }
+    async function approveDeposit(id, btn) { btn.disabled=true; try{ const d=await apiFetch('/api/admin/approve-deposit',{method:'POST',body:JSON.stringify({deposit_id:id})}); showToast(d.message,'success'); refreshAllData(); }catch(e){btn.disabled=false; showToast(e.message,'error');} }
+    async function approveStoreOrder(id, btn) { btn.disabled=true; try{ const d=await apiFetch('/api/admin/approve-store',{method:'POST',body:JSON.stringify({order_id:id})}); showToast(d.message,'success'); refreshAllData(); }catch(e){btn.disabled=false; showToast(e.message,'error');} }
+    function openPayoutModal(id) { document.getElementById('payoutWithdrawId').value=id; document.getElementById('payoutRefInput').value=''; document.getElementById('payoutModal').classList.add('open'); }
+    async function confirmApproveWithdrawal() { try{ const d=await apiFetch('/api/admin/approve-withdrawal',{method:'POST',body:JSON.stringify({withdrawal_id:document.getElementById('payoutWithdrawId').value, payout_ref:document.getElementById('payoutRefInput').value.trim()})}); closeModal('payoutModal'); showToast(d.message,'success'); refreshAllData(); }catch(e){showToast(e.message,'error');} }
+    async function approveKyc(id, btn) { btn.disabled=true; try{ const d=await apiFetch('/api/admin/kyc/review',{method:'POST',body:JSON.stringify({telegram_id:id,decision:'Approved'})}); showToast(d.message,'success'); refreshAllData(); }catch(e){btn.disabled=false; showToast(e.message,'error');} }
+    async function releaseP2PTrade(code, btn) { btn.disabled=true; try{ const d=await apiFetch('/api/admin/p2p/release',{method:'POST',body:JSON.stringify({trade_code:code})}); showToast(d.message,'success'); refreshAllData(); }catch(e){btn.disabled=false; showToast(e.message,'error');} }
+    async function markSellerPaid(code, btn) { btn.disabled=true; try{ const d=await apiFetch('/api/admin/p2p/mark-seller-paid',{method:'POST',body:JSON.stringify({trade_code:code})}); showToast(d.message,'success'); refreshAllData(); }catch(e){btn.disabled=false; showToast(e.message,'error');} }
 
-    // ═══════════════ 3. ACCOUNTS MANAGER (ADD / EDIT / HIDE / DELETE) ═══════════════
+    // 3. ACCOUNTS MANAGER (MOBILE CARDS)
     async function loadAccounts() {
       accountsCache = await apiFetch('/api/admin/accounts');
-      const tbody = document.getElementById('accountsTableBody');
-      if (accountsCache.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="empty-box">No accounts found.</td></tr>`;
-        return;
-      }
-      tbody.innerHTML = accountsCache.map(a => `
-        <tr>
-          <td><strong>${esc(a.label)}</strong><br><small class="mono">${esc(a.key_slug)}</small></td>
-          <td><span class="badge ${a.pool_type === 'USD_NBIYU' ? 'badge-purple' : 'badge-green'}">${esc(a.pool_type)}</span> <small>${esc(a.currency_group)}</small></td>
-          <td><span class="mono" onclick="copyVal('${esc(a.account_value)}')">${esc(a.account_value || 'Not Set')}</span></td>
-          <td>${esc(a.account_holder)}</td>
-          <td><span class="badge ${a.is_active ? 'badge-green' : 'badge-red'}">${a.is_active ? 'VISIBLE' : 'HIDDEN'}</span></td>
-          <td>
-            <div style="display:flex; gap:5px;">
-              <button class="btn btn-gold btn-sm" onclick="openEditAccountModal(${a.id})">Edit</button>
-              <button class="btn btn-ghost btn-sm" onclick="toggleHideAccount(${a.id}, ${!a.is_active})">${a.is_active ? 'Hide' : 'Show'}</button>
-              <button class="btn btn-red btn-sm" onclick="deleteAccount(${a.id})">Del</button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
+      const cont = document.getElementById('accountsMobileList');
+      cont.innerHTML = accountsCache.length === 0 ? `<div class="empty-box">No accounts configured.</div>` : accountsCache.map(a => `
+        <div class="m-item">
+          <div class="m-item-top">
+            <div><strong>${esc(a.label)}</strong> <small class="mono">${esc(a.key_slug)}</small></div>
+            <span class="badge ${a.is_active?'badge-green':'badge-red'}">${a.is_active?'VISIBLE':'HIDDEN'}</span>
+          </div>
+          <div><span class="badge ${a.pool_type==='USD_NBIYU'?'badge-purple':'badge-green'}">${esc(a.pool_type)}</span> <small style="color:var(--muted);">${esc(a.currency_group)} · ${esc(a.account_holder)}</small></div>
+          <div style="margin-top:6px;"><span class="mono" onclick="copyVal('${esc(a.account_value)}')">${esc(a.account_value || 'Not Set')}</span></div>
+          <div class="m-item-actions">
+            <button class="btn btn-gold btn-sm" onclick="openEditAccountModal(${a.id})">Edit</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleHideAccount(${a.id}, ${!a.is_active})">${a.is_active?'Hide':'Show'}</button>
+            <button class="btn btn-red btn-sm" onclick="deleteAccount(${a.id})">Delete</button>
+          </div>
+        </div>`).join('');
     }
-
     function openAddAccountModal() {
-      document.getElementById('accEditId').value = '';
-      document.getElementById('accModalTitle').innerText = 'Add New Payment Account';
-      document.getElementById('accCreateOnlyFields').style.display = 'block';
-      document.getElementById('accSlugInput').value = '';
-      document.getElementById('accLabelInput').value = '';
-      document.getElementById('accValueInput').value = '';
-      document.getElementById('accHolderInput').value = '';
+      document.getElementById('accEditId').value=''; document.getElementById('accModalTitle').innerText='Add Account';
+      document.getElementById('accCreateOnlyFields').style.display='block'; document.getElementById('accSlugInput').value='';
+      document.getElementById('accLabelInput').value=''; document.getElementById('accValueInput').value=''; document.getElementById('accHolderInput').value='';
       document.getElementById('accountFormModal').classList.add('open');
     }
-
     function openEditAccountModal(id) {
-      const a = accountsCache.find(x => x.id === id);
-      if (!a) return;
-      document.getElementById('accEditId').value = a.id;
-      document.getElementById('accModalTitle').innerText = `Edit ${a.label}`;
-      document.getElementById('accCreateOnlyFields').style.display = 'none';
-      document.getElementById('accLabelInput').value = a.label;
-      document.getElementById('accValueInput').value = a.account_value;
-      document.getElementById('accHolderInput').value = a.account_holder;
+      const a = accountsCache.find(x => x.id === id); if (!a) return;
+      document.getElementById('accEditId').value=a.id; document.getElementById('accModalTitle').innerText=`Edit ${a.label}`;
+      document.getElementById('accCreateOnlyFields').style.display='none';
+      document.getElementById('accLabelInput').value=a.label; document.getElementById('accValueInput').value=a.account_value; document.getElementById('accHolderInput').value=a.account_holder;
       document.getElementById('accountFormModal').classList.add('open');
     }
-
     async function saveAccountForm() {
-      const id = document.getElementById('accEditId').value;
-      const label = document.getElementById('accLabelInput').value.trim();
-      const account_value = document.getElementById('accValueInput').value.trim();
-      const account_holder = document.getElementById('accHolderInput').value.trim();
-      if (!label) return showToast('Display Name is required', 'error');
-
+      const id = document.getElementById('accEditId').value, label = document.getElementById('accLabelInput').value.trim(), account_value = document.getElementById('accValueInput').value.trim(), account_holder = document.getElementById('accHolderInput').value.trim();
+      if (!label) return showToast('Display Name required', 'error');
       try {
-        if (id) {
-          await apiFetch('/api/admin/accounts/update', {
-            method: 'POST',
-            body: JSON.stringify({ id: parseInt(id), label, account_value, account_holder })
-          });
-          showToast('Account updated!', 'success');
-        } else {
-          const key_slug = document.getElementById('accSlugInput').value.trim();
-          const pool_type = document.getElementById('accPoolSelect').value;
-          const currency_group = document.getElementById('accGroupSelect').value;
-          const network_type = document.getElementById('accNetworkSelect').value;
-          if (!key_slug) return showToast('Unique slug is required', 'error');
-          await apiFetch('/api/admin/accounts/add', {
-            method: 'POST',
-            body: JSON.stringify({ key_slug, pool_type, currency_group, label, account_value, account_holder, network_type, is_active: true })
-          });
-          showToast('Account created!', 'success');
+        if (id) await apiFetch('/api/admin/accounts/update', { method:'POST', body:JSON.stringify({ id:parseInt(id), label, account_value, account_holder }) });
+        else {
+          const key_slug = document.getElementById('accSlugInput').value.trim(); if (!key_slug) return showToast('Slug required', 'error');
+          await apiFetch('/api/admin/accounts/add', { method:'POST', body:JSON.stringify({ key_slug, pool_type:document.getElementById('accPoolSelect').value, currency_group:document.getElementById('accGroupSelect').value, network_type:document.getElementById('accNetworkSelect').value, label, account_value, account_holder, is_active:true }) });
         }
-        closeModal('accountFormModal');
-        loadAccounts();
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
+        closeModal('accountFormModal'); showToast('Account saved!', 'success'); loadAccounts();
+      } catch (e) { showToast(e.message, 'error'); }
     }
+    async function toggleHideAccount(id, st) { try{ await apiFetch('/api/admin/accounts/update',{method:'POST',body:JSON.stringify({id,is_active:st})}); showToast(st?'Visible':'Hidden','success'); loadAccounts(); }catch(e){showToast(e.message,'error');} }
+    async function deleteAccount(id) { if(!confirm('Delete this account?'))return; try{ await apiFetch('/api/admin/accounts/delete',{method:'POST',body:JSON.stringify({id})}); showToast('Deleted','success'); loadAccounts(); }catch(e){showToast(e.message,'error');} }
 
-    async function toggleHideAccount(id, nextState) {
-      try {
-        await apiFetch('/api/admin/accounts/update', { method: 'POST', body: JSON.stringify({ id, is_active: nextState }) });
-        showToast(nextState ? 'Account visible in Mini App' : 'Account hidden from Mini App', 'success');
-        loadAccounts();
-      } catch (err) { showToast(err.message, 'error'); }
+    // 4. NBIYU LEDGER (MOBILE CARDS)
+    async function loadLedger() { ledgerData = await apiFetch('/api/admin/nbiyu-ledger'); renderLedgerCards(); }
+    function renderLedgerCards() {
+      const dir = document.getElementById('ledgerDirFilter').value, q = document.getElementById('ledgerSearch').value.trim().toLowerCase();
+      const filtered = ledgerData.filter(r => (dir==='ALL'||r.direction===dir) && (!q || `${r.tx_code} ${r.user_name} ${r.channel} ${r.tx_ref} ${r.telegram_id}`.toLowerCase().includes(q)));
+      const cont = document.getElementById('ledgerMobileList');
+      cont.innerHTML = filtered.length===0 ? `<div class="empty-box">No ledger records found.</div>` : filtered.map(r => `
+        <div class="m-item">
+          <div class="m-item-top">
+            <span class="badge ${r.direction==='IN'?'badge-green':'badge-red'}">${r.direction} · $${Number(r.amount_usd).toFixed(2)}</span>
+            <span class="badge badge-blue">${esc(r.verified_by)}</span>
+          </div>
+          <div><strong>${esc(r.channel)}</strong> · ${esc(r.user_name)} (<code>${esc(r.telegram_id)}</code>)</div>
+          <div>Wallet: <span class="mono">${esc(r.destination_account)}</span></div>
+          <div>Ref: <span class="mono" onclick="copyVal('${esc(r.tx_ref)}')">${esc(r.tx_ref)}</span></div>
+          <div style="font-size:11px; color:var(--muted); margin-top:4px;">${esc(r.tx_code)} · ${esc(r.eat_timestamp)}</div>
+        </div>`).join('');
     }
-
-    async function deleteAccount(id) {
-      if (!confirm('Are you sure you want to permanently delete this account?')) return;
-      try {
-        await apiFetch('/api/admin/accounts/delete', { method: 'POST', body: JSON.stringify({ id }) });
-        showToast('Account deleted', 'success');
-        loadAccounts();
-      } catch (err) { showToast(err.message, 'error'); }
-    }
-
-    // ═══════════════ 4. LEDGER & CSV ═══════════════
-    async function loadLedger() {
-      ledgerData = await apiFetch('/api/admin/nbiyu-ledger');
-      renderLedgerTable();
-    }
-
-    function renderLedgerTable() {
-      const dir = document.getElementById('ledgerDirFilter').value;
-      const q = document.getElementById('ledgerSearch').value.trim().toLowerCase();
-      const filtered = ledgerData.filter(r => {
-        if (dir !== 'ALL' && r.direction !== dir) return false;
-        if (q && !`${r.tx_code} ${r.user_name} ${r.channel} ${r.tx_ref} ${r.telegram_id}`.toLowerCase().includes(q)) return false;
-        return true;
-      });
-      const tbody = document.getElementById('ledgerTableBody');
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="empty-box">No matching ledger records found.</td></tr>`;
-        return;
-      }
-      tbody.innerHTML = filtered.map(r => `
-        <tr>
-          <td><span class="mono">${esc(r.tx_code)}</span></td>
-          <td><span class="badge ${r.direction === 'IN' ? 'badge-green' : 'badge-red'}">${esc(r.direction)}</span></td>
-          <td>${esc(r.user_name)}<br><small style="color:var(--muted);">${esc(r.telegram_id)}</small></td>
-          <td><strong>${esc(r.channel)}</strong><br><small class="mono">${esc(r.destination_account)}</small></td>
-          <td style="font-weight:900; color:${r.direction === 'IN' ? 'var(--green)' : 'var(--red)'};">${r.direction === 'IN' ? '+' : '-'}$${Number(r.amount_usd).toFixed(2)}</td>
-          <td><span class="mono" onclick="copyVal('${esc(r.tx_ref)}')">${esc(r.tx_ref)}</span></td>
-          <td><span class="badge badge-blue">${esc(r.verified_by)}</span></td>
-          <td style="font-size:11px; white-space:nowrap;">${esc(r.eat_timestamp)}</td>
-        </tr>
-      `).join('');
-    }
-
     function exportLedgerCSV() {
-      if (ledgerData.length === 0) return showToast('No ledger data', 'error');
-      const headers = ['TX Code', 'Direction', 'Telegram ID', 'User', 'Channel', 'Wallet', 'Amount USD', 'TxRef', 'Verified By', 'Time EAT'];
-      const rows = ledgerData.map(r => [r.tx_code, r.direction, r.telegram_id, r.user_name, r.channel, r.destination_account, r.amount_usd, r.tx_ref, r.verified_by, r.eat_timestamp].map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(','));
-      const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `nbiyu_ledger_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+      if (ledgerData.length===0) return showToast('No data', 'error');
+      const hdr = ['TX Code','Direction','Telegram ID','User','Channel','Wallet','Amount USD','TxRef','Verified By','Time EAT'];
+      const rows = ledgerData.map(r => [r.tx_code,r.direction,r.telegram_id,r.user_name,r.channel,r.destination_account,r.amount_usd,r.tx_ref,r.verified_by,r.eat_timestamp].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','));
+      const url = URL.createObjectURL(new Blob([[hdr.join(','),...rows].join('\n')],{type:'text/csv'}));
+      const a = document.createElement('a'); a.href=url; a.download=`nbiyu_ledger_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
     }
 
-    // ═══════════════ 5. USERS MANAGEMENT ═══════════════
+    // 5. USERS (MOBILE CARDS WITH VOUCHERS)
     async function loadUsers() {
       const q = document.getElementById('userSearchInput').value.trim();
-      usersCache = await apiFetch(`/api/admin/users${q ? '?q=' + encodeURIComponent(q) : ''}`);
-      const tbody = document.getElementById('usersTableBody');
-      if (usersCache.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="empty-box">No users found.</td></tr>`;
-        return;
-      }
-      tbody.innerHTML = usersCache.map((u, idx) => `
-        <tr>
-          <td><span class="mono" onclick="copyVal('${esc(u.telegram_id)}')">${esc(u.telegram_id)}</span></td>
-          <td><strong>${esc(u.first_name)} ${esc(u.last_name || '')}</strong><br><small style="color:var(--muted);">${esc(u.username ? '@' + u.username : '')}</small></td>
-          <td><strong style="color:var(--gold);">$${Number(u.balance_usd).toFixed(2)}</strong><br><small style="color:var(--muted);">Locked: $${Number(u.locked_usd || 0).toFixed(2)}</small></td>
-          <td><span class="badge ${u.kyc_status === 'Approved' ? 'badge-green' : u.kyc_status === 'Pending' ? 'badge-gold' : 'badge-red'}">${esc(u.kyc_status)}</span></td>
-          <td><strong style="color:${u.fake_attempts >= 2 ? 'var(--red)' : 'var(--text)'};">${u.fake_attempts || 0}/3</strong></td>
-          <td><span class="badge ${u.is_banned === 1 ? 'badge-red' : 'badge-green'}">${u.is_banned === 1 ? 'BANNED' : 'ACTIVE'}</span></td>
-          <td>
-            <div style="display:flex; gap:5px;">
-              <button class="btn btn-gold btn-sm" onclick="openAdjustModalByIdx(${idx})">± Bal</button>
-              <button class="btn ${u.is_banned === 1 ? 'btn-green' : 'btn-red'} btn-sm" onclick="toggleBan('${esc(u.telegram_id)}', ${u.is_banned === 1 ? 'false' : 'true'})">${u.is_banned === 1 ? 'Unban' : 'Ban'}</button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
+      usersCache = await apiFetch(`/api/admin/users${q?'?q='+encodeURIComponent(q):''}`);
+      const cont = document.getElementById('usersMobileList');
+      cont.innerHTML = usersCache.length===0 ? `<div class="empty-box">No users found.</div>` : usersCache.map((u, idx) => `
+        <div class="m-item">
+          <div class="m-item-top">
+            <div><strong>${esc(u.first_name)} ${esc(u.last_name||'')}</strong> <small style="color:var(--muted);">${esc(u.username?'@'+u.username:'')}</small></div>
+            <span class="badge ${u.is_banned===1?'badge-red':'badge-green'}">${u.is_banned===1?'BANNED':'ACTIVE'}</span>
+          </div>
+          <div>ID: <span class="mono" onclick="copyVal('${esc(u.telegram_id)}')">${esc(u.telegram_id)}</span> · KYC: <span class="badge ${u.kyc_status==='Approved'?'badge-green':'badge-gold'}">${esc(u.kyc_status)}</span></div>
+          <div class="m-row" style="margin-top:6px;">
+            <span>Vault: <strong style="color:var(--gold);">$${Number(u.balance_usd).toFixed(2)}</strong></span>
+            <span>Voucher: <strong style="color:var(--purple);">$${Number(u.voucher_usd||0).toFixed(2)}</strong></span>
+            <span>Strikes: <strong style="color:${u.fake_attempts>=2?'var(--red)':'var(--text)'};">${u.fake_attempts||0}/3</strong></span>
+          </div>
+          <div class="m-item-actions">
+            <button class="btn btn-gold btn-sm" onclick="openAdjustModalByIdx(${idx})">± Balance</button>
+            <button class="btn ${u.is_banned===1?'btn-green':'btn-red'} btn-sm" onclick="toggleBan('${esc(u.telegram_id)}',${u.is_banned===1?'false':'true'})">${u.is_banned===1?'Unban':'Ban'}</button>
+          </div>
+        </div>`).join('');
     }
-
     function openAdjustModalByIdx(idx) {
-      const u = usersCache[idx];
-      if (!u) return;
-      document.getElementById('adjTargetId').value = u.telegram_id;
-      document.getElementById('adjTargetLabel').innerText = `${u.first_name} (${u.telegram_id})`;
-      document.getElementById('adjAmount').value = '';
-      document.getElementById('adjustBalModal').classList.add('open');
+      const u = usersCache[idx]; if (!u) return;
+      document.getElementById('adjTargetId').value=u.telegram_id; document.getElementById('adjTargetLabel').innerText=`${u.first_name} (${u.telegram_id})`;
+      document.getElementById('adjAmount').value=''; document.getElementById('adjustBalModal').classList.add('open');
     }
-
     async function submitAdjustBalance() {
-      const telegram_id = document.getElementById('adjTargetId').value;
-      const action = document.getElementById('adjAction').value;
-      const amount_usd = parseFloat(document.getElementById('adjAmount').value);
-      const reason = document.getElementById('adjReason').value.trim();
-      if (!amount_usd || amount_usd <= 0) return showToast('Enter valid USD amount', 'error');
-      try {
-        const d = await apiFetch('/api/admin/adjust-balance', { method: 'POST', body: JSON.stringify({ telegram_id, amount_usd, action, reason }) });
-        closeModal('adjustBalModal'); showToast(`New balance: $${d.new_balance_usd}`, 'success'); loadUsers(); loadAnalytics();
-      } catch (err) { showToast(err.message, 'error'); }
+      const telegram_id=document.getElementById('adjTargetId').value, action=document.getElementById('adjAction').value, amount_usd=parseFloat(document.getElementById('adjAmount').value), reason=document.getElementById('adjReason').value.trim();
+      if (!amount_usd||amount_usd<=0) return showToast('Enter valid amount','error');
+      try{ const d=await apiFetch('/api/admin/adjust-balance',{method:'POST',body:JSON.stringify({telegram_id,amount_usd,action,reason})}); closeModal('adjustBalModal'); showToast(`New bal: $${d.new_balance_usd}`,'success'); loadUsers(); loadAnalytics(); }catch(e){showToast(e.message,'error');}
     }
+    async function toggleBan(id, st) { try{ const d=await apiFetch('/api/admin/ban-user',{method:'POST',body:JSON.stringify({telegram_id:id,banned:st})}); showToast(d.message,'success'); loadUsers(); }catch(e){showToast(e.message,'error');} }
 
-    async function toggleBan(tgId, banState) {
-      try {
-        const d = await apiFetch('/api/admin/ban-user', { method: 'POST', body: JSON.stringify({ telegram_id: tgId, banned: banState }) });
-        showToast(d.message, 'success'); loadUsers();
-      } catch (err) { showToast(err.message, 'error'); }
-    }
-
-    // ═══════════════ 6. BROADCAST ═══════════════
+    // 6. BROADCAST
     async function startBroadcast() {
-      const text = document.getElementById('bcText').value.trim();
-      const photo = document.getElementById('bcPhoto').value.trim();
-      const btnText = document.getElementById('bcBtnText').value.trim();
-      const btnUrl = document.getElementById('bcBtnUrl').value.trim();
-      const aud = document.getElementById('bcAudience').value;
-      if (!text) return showToast('Enter broadcast message', 'error');
-
+      const text=document.getElementById('bcText').value.trim(), photo=document.getElementById('bcPhoto').value.trim(), btnText=document.getElementById('bcBtnText').value.trim(), btnUrl=document.getElementById('bcBtnUrl').value.trim(), aud=document.getElementById('bcAudience').value;
+      if (!text) return showToast('Enter message','error');
       const payload = { text, photo, btnText, btnUrl };
-      if (aud === 'SEGMENT') {
-        const ids = document.getElementById('bcUserIds').value.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
-        if (ids.length === 0) return showToast('Enter at least one ID', 'error');
-        payload.user_ids = ids;
-      }
-      try {
-        const d = await apiFetch('/broadcast/start', { method: 'POST', body: JSON.stringify(payload) });
-        showToast(`Broadcast started for ${d.total} users!`, 'success');
-        pollBroadcastStatus();
-      } catch (err) { showToast(err.message, 'error'); }
+      if (aud==='SEGMENT') { const ids=document.getElementById('bcUserIds').value.split(/[\s,]+/).map(s=>s.trim()).filter(Boolean); if(ids.length===0) return showToast('Enter IDs','error'); payload.user_ids=ids; }
+      try{ const d=await apiFetch('/broadcast/start',{method:'POST',body:JSON.stringify(payload)}); showToast(`Started for ${d.total} users!`,'success'); pollBroadcastStatus(); }catch(e){showToast(e.message,'error');}
     }
-
-    async function controlBroadcast(action) {
-      try { const d = await apiFetch(`/broadcast/${action}`, { method: 'POST' }); showToast(d.message, 'success'); pollBroadcastStatus(); }
-      catch (err) { showToast(err.message, 'error'); }
-    }
-
+    async function controlBroadcast(a) { try{ const d=await apiFetch(`/broadcast/${a}`,{method:'POST'}); showToast(d.message,'success'); pollBroadcastStatus(); }catch(e){showToast(e.message,'error');} }
     async function pollBroadcastStatus() {
       if (bcPollTimer) clearTimeout(bcPollTimer);
       try {
         const s = await apiFetch('/broadcast/status');
-        document.getElementById('bcSent').innerText = s.sent;
-        document.getElementById('bcFailed').innerText = s.failed;
-        document.getElementById('bcTotal').innerText = s.total;
-        document.getElementById('bcProgressFill').style.width = `${s.pct}%`;
-        document.getElementById('bcStateBadge').innerText = s.running ? (s.paused ? 'PAUSED' : `RUNNING ${s.pct}%`) : 'IDLE';
-        if (s.lastLog && s.lastLog.length > 0) document.getElementById('bcLogsBox').innerText = s.lastLog.join('\n');
-        if (s.running) bcPollTimer = setTimeout(pollBroadcastStatus, 2500);
+        document.getElementById('bcSent').innerText=s.sent; document.getElementById('bcFailed').innerText=s.failed; document.getElementById('bcTotal').innerText=s.total;
+        document.getElementById('bcProgressFill').style.width=`${s.pct}%`; document.getElementById('bcStateBadge').innerText=s.running?(s.paused?'PAUSED':`RUNNING ${s.pct}%`):'IDLE';
+        if (s.lastLog?.length) document.getElementById('bcLogsBox').innerText=s.lastLog.join('\n');
+        if (s.running) bcPollTimer=setTimeout(pollBroadcastStatus,2500);
       } catch (_) {}
     }
 
-    // ═══════════════ UTILITIES ═══════════════
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
     function copyVal(v) { navigator.clipboard.writeText(v); showToast(`Copied: ${v}`, 'success'); }
-    function showToast(msg, type = '') {
-      const t = document.getElementById('toast');
-      t.innerText = msg; t.className = `toast ${type} show`;
-      setTimeout(() => t.classList.remove('show'), 2800);
-    }
+    function showToast(m, t='') { const el=document.getElementById('toast'); el.innerText=m; el.className=`toast ${t} show`; setTimeout(()=>el.classList.remove('show'),2600); }
 
     if (ADMIN_KEY) attemptLogin();
   </script>
